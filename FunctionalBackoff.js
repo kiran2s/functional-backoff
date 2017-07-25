@@ -1,64 +1,76 @@
 'use strict';
 
-var beginTime = Date.now();
-
 class FunctionalBackoff {
-    constructor(servicePromise, backoffFunction, maxRetries, initTimeBetweenCalls) {
-        this.servicePromise = servicePromise;
+    // args: [() -> Promise] [int -> int] [int] [int]
+    constructor(service, backoffFunction, maxRetries, initDelay) {
+        this.service = service;
         this.backoffFunction = backoffFunction;
         this.MAX_RETRIES = maxRetries;
-        this.delayAmt = initTimeBetweenCalls;
+        this.delayAmt = initDelay;
 
         this.i = 0;
-        this.serviceSucceeded = false; 
+        this.serviceSucceeded = false;
+
+        this.beginTime = Date.now();
     }
 
+    sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    // return: Promise
     run() {
-        return this.retry();
-    }
+        var _this = this;
+        return new Promise(async function(resolve, reject) {
+            if (_this.i <= 0) {
+                resolve(false);
+            }
+            
+            while (_this.i < _this.MAX_RETRIES && _this.serviceSucceeded === false) {
+                _this.service()
+                    .then(() => {
+                        console.log(Date.now() - _this.beginTime + ": SUCCESS");
+                        _this.serviceSucceeded = true;
+                        resolve(true);
+                    })
+                    .catch(() => {
+                        console.log(Date.now() - _this.beginTime + ": FAILURE");
+                        if (_this.i >= _this.MAX_RETRIES) {
+                            resolve(false);
+                        }
+                    });
 
-    retry() {
-        if (this.i >= this.MAX_RETRIES || this.serviceSucceeded === true) {
-            return;
-        }
-
-        this.servicePromise()
-            .then(() => {
-                console.log("yup");
-                this.serviceSucceeded = true;
-            })
-            .catch(() => {
-                console.log("nope");
-            });
-
-        if (this.i !== 0) {
-            this.delayAmt = this.backoffFunction(this.delayAmt);
-        }
-        this.i++;
-        setTimeout(this.retry.bind(this), this.delayAmt);
+                _this.i++;
+                if (_this.i >= _this.MAX_RETRIES) {
+                    break;
+                }
+                await _this.sleep(_this.delayAmt);
+                _this.delayAmt = _this.backoffFunction(_this.delayAmt);
+            }
+        });
     }
 }
 
 /*
 class FunctionalBackoff {
-    constructor(servicePromise, backoffFunction, maxRetries, initTimeBetweenCalls) {
-        this.servicePromise = servicePromise;
+    constructor(service, backoffFunction, maxRetries, initDelay) {
+        this.service = service;
         this.backoffFunction = backoffFunction;
         this.MAX_RETRIES = maxRetries;
-        this.delayAmt = initTimeBetweenCalls;
+        this.delayAmt = initDelay;
 
         this.i = 0;
-        this.serviceSucceeded = false;
+        //this.serviceSucceeded = false;
+
+        this.beginTime = Date.now();
     }
 
     run() {
         this.retry()
             .then(() => {
-                console.log("true");
                 return true;
             })
             .catch(() => {
-                console.log("false");
                 return false;
             });
     }
@@ -66,40 +78,34 @@ class FunctionalBackoff {
     retry() {
         var _this = this;
         return new Promise(async function(resolve, reject) {
-            if (_this.i >= _this.MAX_RETRIES) {
-                reject();
-            }
-            else if (_this.serviceSucceeded === true) {
-                resolve();
-            }
-
-            _this.servicePromise()
+            _this.service()
                 .then(() => {
-                    let elapsedTime = Date.now() - beginTime;
-                    console.log(elapsedTime);
-                    _this.serviceSucceeded = true;
+                    _this.elapsedTime = Date.now() - _this.beginTime;
+                    console.log(_this.elapsedTime + ": SUCCESS");
+                    resolve();
                 })
                 .catch(() => {
-                    let elapsedTime = Date.now() - beginTime;
-                    console.log(elapsedTime);
+                    _this.elapsedTime = Date.now() - _this.beginTime;
+                    console.log(_this.elapsedTime + ": FAILURE");
                 });
-            
+
             if (_this.i !== 0) {
                 _this.delayAmt = _this.backoffFunction(_this.delayAmt);
             }
             _this.i++;
-            await new Promise(resolve => setTimeout(
-                () => {
-                    _this.retry()
-                        .then(() => {
-                            resolve();
-                        })
-                        .catch(() => {
-                            reject();
-                        });
-                },
-                _this.delayAmt
-            ));
+            if (_this.i >= _this.MAX_RETRIES) {
+                reject();
+            }
+
+            await new Promise(function(resolve, reject) {
+                setTimeout(() => {
+                        _this.retry.bind(_this)()
+                            .then(() => resolve())
+                            .catch(() => reject())
+                    },
+                    _this.delayAmt
+                );
+            }).then(() => resolve()).catch(() => reject());
         });
     }
 }
