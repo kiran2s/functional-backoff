@@ -22,11 +22,11 @@ class FunctionalBackoff {
     run() {
         var _this = this;
         return new Promise(async function(resolve, reject) {
-            if (_this.i <= 0) {
+            if (_this.MAX_RETRIES <= 0) {
                 resolve(false);
             }
             
-            while (_this.i < _this.MAX_RETRIES && _this.serviceSucceeded === false) {
+            while (_this.serviceSucceeded === false) {
                 _this.service()
                     .then(() => {
                         console.log(Date.now() - _this.beginTime + ": SUCCESS");
