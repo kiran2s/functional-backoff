@@ -1,5 +1,5 @@
 'use strict';
 
-var FunctionalBackoff = require('./FunctionalBackoff');
+var FunctionalBackoff = require('./src/FunctionalBackoff');
 
 module.exports = FunctionalBackoff;
