@@ -1,7 +1,7 @@
 'use strict';
 
 class FunctionalBackoff {
-    constructor(service, nextDelay, initDelay, maxRetries) {
+    constructor(service, nextDelay, initDelay, maxRetries, debug = false) {
         let _this = this;
         this.service = function(retryNum) {
             return new Promise(function(resolve, reject) {
@@ -23,6 +23,7 @@ class FunctionalBackoff {
         this.nextDelay = nextDelay;
         this.delayAmt = initDelay;
         this.MAX_RETRIES = maxRetries;
+        this.debug = debug;
 
         this.numRetries = 0;
         this.serviceSuccessful = false;
@@ -43,16 +44,16 @@ class FunctionalBackoff {
                         .then((resolveVal) => {
                             if (resolveVal === true) {
                                 _this.serviceSuccessful = true;
-                                console.log(Date.now() - _this.initTime + ": SUCCESS");
+                                _this.log("SUCCESS");
                                 resolve(true);
                             }
                             else {
-                                console.log(Date.now() - _this.initTime + ": FAILURE");
+                                _this.log("FAILURE");
                                 resolve(false);
                             }
                         })
                         .catch(() => {
-                            console.log(Date.now() - _this.initTime + ": FAILURE");
+                            _this.log("FAILURE");
                         });
                     
                     _this.numRetries++;
@@ -68,6 +69,12 @@ class FunctionalBackoff {
 
     sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    log(msg) {
+        if (this.debug) {
+            console.log(Date.now() - this.initTime + ": " + msg);
+        }
     }
 }
 
