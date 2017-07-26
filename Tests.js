@@ -45,7 +45,7 @@ class Tests {
             },
             (delayAmt => 2 * delayAmt),
             100,
-            7
+            10
         ).run();
     }
 }
