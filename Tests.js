@@ -44,8 +44,8 @@ class Tests {
                 });
             },
             (delayAmt => 2 * delayAmt),
-            10,
-            100
+            100,
+            10
         ).run();
     }
 }
