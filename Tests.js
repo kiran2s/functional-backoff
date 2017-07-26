@@ -9,7 +9,7 @@ function sleep(ms) {
 class Tests {
     constructor() {
         this.tests = [this.test1];
-        this.beginTime = Date.now();
+        this.initTime = Date.now();
         this.n = 0;
     }
 
@@ -31,9 +31,9 @@ class Tests {
         return new FunctionalBackoff(
             function() {
                 return new Promise(async function(resolve, reject) {
-                    console.log(Date.now() - _this.beginTime + ": Service requested");
+                    console.log(Date.now() - _this.initTime + ": Service requested");
                     await sleep(1000);
-                    if (_this.n === 6) {
+                    if (_this.n === 5) {
                         _this.n = 0;
                         resolve();
                     }
@@ -45,7 +45,7 @@ class Tests {
             },
             (delayAmt => 2 * delayAmt),
             100,
-            10
+            7
         ).run();
     }
 }

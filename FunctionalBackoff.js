@@ -25,7 +25,7 @@ class FunctionalBackoff {
         this.MAX_RETRIES = maxRetries;
 
         this.numRetries = 0;
-        this.serviceSucceeded = false;
+        this.serviceSuccessful = false;
 
         this.initTime = Date.now();
     }
@@ -33,24 +33,41 @@ class FunctionalBackoff {
     run() {
         let _this = this;
 
-        return new Promise(function(resolve, reject) {
-            if (_this.numRetries < _this.MAX_RETRIES) {
-                _this.service(_this.numRetries)
-                    .then(resolveVal => {
-                        if (resolveVal === true) {
-                            resolve(true);
-                        }
-                        else {
-                            resolve(false);
-                        }
-                    })
-                    .catch(() => {
-
-                    });
-                
-                
+        return new Promise(async function(resolve, reject) {
+            if (_this.MAX_RETRIES <= 0) {
+                resolve(false);
+            }
+            else {
+                while (_this.serviceSuccessful === false) {
+                    _this.service(_this.numRetries)
+                        .then((resolveVal) => {
+                            if (resolveVal === true) {
+                                _this.serviceSuccessful = true;
+                                console.log(Date.now() - _this.initTime + ": SUCCESS");
+                                resolve(true);
+                            }
+                            else {
+                                console.log(Date.now() - _this.initTime + ": FAILURE");
+                                resolve(false);
+                            }
+                        })
+                        .catch(() => {
+                            console.log(Date.now() - _this.initTime + ": FAILURE");
+                        });
+                    
+                    _this.numRetries++;
+                    if (_this.numRetries >= _this.MAX_RETRIES) {
+                        break;
+                    }
+                    await _this.sleep(_this.delayAmt);
+                    _this.delayAmt = _this.nextDelay(_this.delayAmt);
+                }
             }
         });
+    }
+
+    sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
     }
 }
 
