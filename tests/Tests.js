@@ -14,30 +14,33 @@ function assert(condition) {
 
 class Tests {
     constructor() {
+        this.backoffMethods = [{async: false, rec: null}, {async: true, rec: true}, {async: true, rec: false}];
         this.tests = [this.test0, this.test1, this.test2, this.test3];
         this.answers = [false, true, true, false];
     }
 
     async run() {
-        
-        for (var i = 0; i < this.tests.length; i++) {
-            let test = this.tests[i].bind(this);
-            console.log("TEST " + i + ":");
-            try {
-                let resolveVal = await test();
-                console.log("RESOLVE: " + resolveVal);
-                assert(resolveVal === this.answers[i])
-            }
-            catch(rejectVal) {
-                console.log("REJECT: " + rejectVal);
-                break;
-            }
+        for (var i = 0; i < this.backoffMethods.length; i++) {
+            let backoffMethod = this.backoffMethods[i];
+            console.log("BACKOFF METHOD: async = " + backoffMethod.async + ", rec = " + backoffMethod.rec);
             console.log("");
+            for (var j = 0; j < this.tests.length; j++) {
+                let test = this.tests[j].bind(this);
+                console.log("TEST " + j + ":");
+                try {
+                    let resolveVal = await test(backoffMethod.async, backoffMethod.rec);
+                    console.log("RESOLVE: " + resolveVal);
+                    assert(resolveVal === this.answers[j])
+                }
+                catch(e) {
+                    console.log("REJECT: " + e);
+                    return;
+                }
+                console.log("");
+            }
         }
 
-        if (i === this.tests.length) {
-            console.log("ALL TESTS PASSED");
-        }
+        console.log("ALL TESTS PASSED");
     }
 
     test0(async, rec) {

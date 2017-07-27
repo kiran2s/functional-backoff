@@ -32,17 +32,7 @@ class FunctionalBackoff {
     }
 
     run(async = false, rec = true) {
-        if (async === true) {
-            if (rec === true) {
-                runAsyncRec();
-            }
-            else {
-                runAsync();
-            }
-        }
-        else {
-            return runSync();
-        }
+        return async === false ? this.runSync() : this.runAsync(rec);
     }
 
     runSync() {
@@ -80,7 +70,11 @@ class FunctionalBackoff {
         return retry();
     }
 
-    runAsync() {
+    runAsync(rec = true) {
+        return rec === true ? this.runAsyncRecursive() : this.runAsyncIterative();
+    }
+
+    runAsyncIterative() {
         if (this.MAX_RETRIES <= 0) {
             return new Promise(resolve => resolve(false));
         }
@@ -113,7 +107,7 @@ class FunctionalBackoff {
         });
     }
 
-    runAsyncRec() {
+    runAsyncRecursive() {
         if (this.MAX_RETRIES <= 0) {
             return new Promise(resolve => resolve(false));
         }
