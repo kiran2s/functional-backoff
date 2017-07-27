@@ -31,8 +31,8 @@ class FunctionalBackoff {
         this.initTime = Date.now();
     }
 
-    run(async = false, rec = true) {
-        return async === false ? this.runSync() : this.runAsync(rec);
+    run(sync = true, rec = true) {
+        return sync === true ? this.runSync() : this.runAsync(rec);
     }
 
     runSync() {
@@ -46,6 +46,7 @@ class FunctionalBackoff {
                 _this.service(_this.numRetries)
                     .then(resolveVal => {
                         if (resolveVal === true) {
+                            _this.serviceSuccessful = true;
                             _this.log("SUCCESS");
                         }
                         else {
@@ -53,7 +54,7 @@ class FunctionalBackoff {
                         }
                         resolve(resolveVal);
                     })
-                    .catch(async () => {
+                    .catch(() => {
                         _this.log("FAILURE");
                         _this.numRetries++;
                         if (_this.numRetries > 1) {
@@ -137,10 +138,7 @@ class FunctionalBackoff {
                             _this.delayAmt = _this.nextDelay(_this.delayAmt);
                         }
                         setTimeout(
-                            () => {
-                                retry()
-                                    .then(resolveVal => resolve(resolveVal))
-                            },
+                            () => retry().then(resolveVal => resolve(resolveVal)),
                             _this.delayAmt
                         );
                     }
