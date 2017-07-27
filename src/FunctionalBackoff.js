@@ -31,40 +31,130 @@ class FunctionalBackoff {
         this.initTime = Date.now();
     }
 
-    run() {
-        let _this = this;
-
-        return new Promise(async function(resolve, reject) {
-            if (_this.MAX_RETRIES <= 0) {
-                resolve(false);
+    run(async = false, rec = true) {
+        if (async === true) {
+            if (rec === true) {
+                runAsyncRec();
             }
             else {
-                while (_this.serviceSuccessful === false) {
+                runAsync();
+            }
+        }
+        else {
+            return runSync();
+        }
+    }
+
+    runSync() {
+        if (this.MAX_RETRIES <= 0) {
+            return new Promise(resolve => resolve(false));
+        }
+
+        let _this = this;
+        let retry = function() {
+            return new Promise(function(resolve, reject) {
+                _this.service(_this.numRetries)
+                    .then(resolveVal => {
+                        if (resolveVal === true) {
+                            _this.log("SUCCESS");
+                        }
+                        else {
+                            _this.log("FAILURE");
+                        }
+                        resolve(resolveVal);
+                    })
+                    .catch(async () => {
+                        _this.log("FAILURE");
+                        _this.numRetries++;
+                        if (_this.numRetries > 1) {
+                            _this.delayAmt = _this.nextDelay(_this.delayAmt);
+                        }
+                        setTimeout(
+                            () => retry().then(resolveVal => resolve(resolveVal)),
+                            _this.delayAmt  
+                        );
+                    });
+            });
+        }
+
+        return retry();
+    }
+
+    runAsync() {
+        if (this.MAX_RETRIES <= 0) {
+            return new Promise(resolve => resolve(false));
+        }
+
+        let _this = this;
+        return new Promise(async function(resolve, reject) {
+            while (_this.serviceSuccessful === false) {
+                _this.service(_this.numRetries)
+                    .then(resolveVal => {
+                        if (resolveVal === true) {
+                            _this.serviceSuccessful = true;
+                            _this.log("SUCCESS");
+                        }
+                        else {
+                            _this.log("FAILURE");
+                        }
+                        resolve(resolveVal);
+                    })
+                    .catch(() => {
+                        _this.log("FAILURE");
+                    });
+                
+                _this.numRetries++;
+                if (_this.numRetries >= _this.MAX_RETRIES) {
+                    break;
+                }
+                await _this.sleep(_this.delayAmt);
+                _this.delayAmt = _this.nextDelay(_this.delayAmt);
+            }
+        });
+    }
+
+    runAsyncRec() {
+        if (this.MAX_RETRIES <= 0) {
+            return new Promise(resolve => resolve(false));
+        }
+
+        let _this = this;
+        let retry = function() {
+            return new Promise(function(resolve, reject) {
+                if (_this.serviceSuccessful === false) {
                     _this.service(_this.numRetries)
-                        .then((resolveVal) => {
+                        .then(resolveVal => {
                             if (resolveVal === true) {
                                 _this.serviceSuccessful = true;
                                 _this.log("SUCCESS");
-                                resolve(true);
                             }
                             else {
                                 _this.log("FAILURE");
-                                resolve(false);
                             }
+                            resolve(resolveVal);
                         })
                         .catch(() => {
                             _this.log("FAILURE");
                         });
                     
                     _this.numRetries++;
-                    if (_this.numRetries >= _this.MAX_RETRIES) {
-                        break;
+                    if (_this.numRetries < _this.MAX_RETRIES) {
+                        if (_this.numRetries > 1) {
+                            _this.delayAmt = _this.nextDelay(_this.delayAmt);
+                        }
+                        setTimeout(
+                            () => {
+                                retry()
+                                    .then(resolveVal => resolve(resolveVal))
+                            },
+                            _this.delayAmt
+                        );
                     }
-                    await _this.sleep(_this.delayAmt);
-                    _this.delayAmt = _this.nextDelay(_this.delayAmt);
                 }
-            }
-        });
+            });
+        }
+
+        return retry();
     }
 
     sleep(ms) {

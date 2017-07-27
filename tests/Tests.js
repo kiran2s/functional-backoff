@@ -19,6 +19,7 @@ class Tests {
     }
 
     async run() {
+        
         for (var i = 0; i < this.tests.length; i++) {
             let test = this.tests[i].bind(this);
             console.log("TEST " + i + ":");
@@ -39,7 +40,7 @@ class Tests {
         }
     }
 
-    test0() {
+    test0(async, rec) {
         let n = 0;
         let initTime = Date.now();
         return new FunctionalBackoff(
@@ -61,10 +62,10 @@ class Tests {
             100,
             0,
             true
-        ).run();
+        ).run(async, rec);
     }
 
-    test1() {
+    test1(async, rec) {
         let n = 0;
         let initTime = Date.now();
         return new FunctionalBackoff(
@@ -86,10 +87,10 @@ class Tests {
             100,
             10,
             true
-        ).run();
+        ).run(async, rec);
     }
 
-    test2() {
+    test2(async, rec) {
         let n = 0;
         let initTime = Date.now();
         return new FunctionalBackoff(
@@ -111,10 +112,10 @@ class Tests {
             1000,
             6,
             true
-        ).run();
+        ).run(async, rec);
     }
 
-    test3() {
+    test3(async, rec) {
         let n = 0;
         let initTime = Date.now();
         return new FunctionalBackoff(
@@ -136,7 +137,7 @@ class Tests {
             100,
             5,
             true
-        ).run();
+        ).run(async, rec);
     }
 }
 
