@@ -15,8 +15,8 @@ function assert(condition) {
 class Tests {
     constructor() {
         this.backoffMethods = [{sync: true, rec: null}, {sync: false, rec: true}, {sync: false, rec: false}];
-        this.tests = [this.test0, this.test1, this.test2, this.test3, this.test4];
-        this.answers = [false, true, true, false, true];
+        this.tests = [this.test0, this.test1, this.test2, this.test3, this.test4, this.test5];
+        this.answers = [false, true, true, false, true, true];
     }
 
     async run() {
@@ -40,7 +40,7 @@ class Tests {
             }
         }
 
-        console.log("ALL TESTS PASSED");
+        console.log("*** ALL TESTS PASSED ***");
     }
 
     test0(sync, rec) {
@@ -64,6 +64,7 @@ class Tests {
             (delayAmt => 2 * delayAmt),
             100,
             0,
+            null,
             true
         ).run(sync, rec);
     }
@@ -89,6 +90,7 @@ class Tests {
             (delayAmt => 100 + delayAmt),
             100,
             10,
+            null,
             true
         ).run(sync, rec);
     }
@@ -114,6 +116,7 @@ class Tests {
             (delayAmt => 0.5 * delayAmt),
             1000,
             6,
+            null,
             true
         ).run(sync, rec);
     }
@@ -139,6 +142,7 @@ class Tests {
             (delayAmt => 2 * delayAmt),
             100,
             5,
+            null,
             true
         ).run(sync, rec);
     }
@@ -150,7 +154,7 @@ class Tests {
             function() {
                 return new Promise(async function(resolve, reject) {
                     console.log(Date.now() - initTime + ": Service requested");
-                    await sleep(5000);
+                    await sleep(4000);
                     if (n === 2) {
                         n = 0;
                         resolve();
@@ -162,8 +166,39 @@ class Tests {
                 });
             },
             (delayAmt => delayAmt),
-            500,
+            400,
             5,
+            null,
+            true
+        ).run(sync, rec);
+    }
+
+    test5(sync, rec) {
+        let n = 0;
+        let sleepAmt = 5000;
+        let initTime = Date.now();
+        return new FunctionalBackoff(
+            function() {
+                return new Promise(async function(resolve, reject) {
+                    console.log(Date.now() - initTime + ": Service requested");
+                    let callNum = n++;
+                    if (sleepAmt >= 1000) {
+                        sleepAmt -= 1000;
+                    }
+                    await sleep(sleepAmt);
+                    if (callNum === 2) {
+                        n = 0;
+                        resolve();
+                    }
+                    else {
+                        reject();
+                    }
+                });
+            },
+            (delayAmt => delayAmt),
+            400,
+            10,
+            1200,
             true
         ).run(sync, rec);
     }
