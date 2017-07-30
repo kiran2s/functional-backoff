@@ -29,8 +29,8 @@ class FunctionalBackoff {
         this.initTime = Date.now();
     }
 
-    run(sync = true, rec = true) {
-        return sync === true ? this.runSync() : this.runAsync(rec);
+    run(sync = true) {
+        return sync === true ? this.runSync() : this.runAsync();
     }
 
     runSync() {
@@ -48,7 +48,7 @@ class FunctionalBackoff {
 
             let eventuallyPerformAnotherRetry = true;
             let attemptService = function() {
-                return new Promise(function(resolve, reject) {
+                return new Promise(function(resolve) {
                     _this.service(numRetries)
                         .then(resolveVal => {
                             eventuallyPerformAnotherRetry = false;
@@ -79,7 +79,7 @@ class FunctionalBackoff {
             }
 
             let retryAfterTimeout = function() {
-                return new Promise(function(resolve, reject) {
+                return new Promise(function(resolve) {
                     setTimeout(
                         () => {
                             if (eventuallyPerformAnotherRetry === true) {
@@ -113,21 +113,17 @@ class FunctionalBackoff {
         return retry();
     }
 
-    runAsync(rec = true) {
-        return rec === true ? this.runAsyncRecursive() : this.runAsyncIterative();
-    }
-
-    runAsyncIterative() {
+    runAsync() {
         if (this.MAX_RETRIES <= 0) {
             return new Promise(resolve => resolve(false));
         }
 
-        let numRetries = 0;
         let serviceSuccessful = false;
         let _this = this;
-        return new Promise(async function(resolve, reject) {
-            while (serviceSuccessful === false) {
-                _this.service(numRetries)
+
+        let attemptService = function(retryNum) {
+            return new Promise(function(resolve) {
+                _this.service(retryNum)
                     .then(resolveVal => {
                         if (resolveVal === true) {
                             serviceSuccessful = true;
@@ -141,62 +137,37 @@ class FunctionalBackoff {
                     .catch(() => {
                         _this.log("FAILURE");
                     });
-                
-                numRetries++;
-                if (numRetries >= _this.MAX_RETRIES) {
-                    break;
-                }
-                await _this.sleep(_this.delayAmt);
-                _this.delayAmt = _this.nextDelay(_this.delayAmt);
-            }
-        });
-    }
+            });
+        };
 
-    runAsyncRecursive() {
-        if (this.MAX_RETRIES <= 0) {
-            return new Promise(resolve => resolve(false));
-        }
-
-        let numRetries = 0;
-        let serviceSuccessful = false;
-        let _this = this;
-        let retry = function() {
-            return new Promise(function(resolve, reject) {
-                if (serviceSuccessful === false) {
-                    _this.service(numRetries)
-                        .then(resolveVal => {
-                            if (resolveVal === true) {
-                                serviceSuccessful = true;
-                                _this.log("SUCCESS");
-                            }
-                            else {
-                                _this.log("FAILURE");
-                            }
-                            resolve(resolveVal);
-                        })
-                        .catch(() => {
-                            _this.log("FAILURE");
-                        });
-                    
-                    numRetries++;
-                    if (numRetries < _this.MAX_RETRIES) {
-                        if (numRetries > 1) {
-                            _this.delayAmt = _this.nextDelay(_this.delayAmt);
-                        }
-                        setTimeout(
-                            () => retry().then(resolveVal => resolve(resolveVal)),
-                            _this.delayAmt
-                        );
+        let retryAfterDelay = function(retryNum) {
+            return new Promise(function(resolve) {
+                if (retryNum < _this.MAX_RETRIES) {
+                    if (retryNum > 1) {
+                        _this.delayAmt = _this.nextDelay(_this.delayAmt);
                     }
+                    setTimeout(
+                        () => retry(retryNum).then(resolveVal => resolve(resolveVal)),
+                        _this.delayAmt
+                    );
                 }
             });
+        };
+
+        let retry = function(retryNum) {
+            if (serviceSuccessful === true) {
+                return new Promise(() => {});
+            }
+
+            return Promise.race(
+                [
+                    attemptService(retryNum),
+                    retryAfterDelay(retryNum + 1)
+                ]
+            );
         }
 
-        return retry();
-    }
-
-    sleep(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
+        return retry(0);
     }
 
     log(msg) {

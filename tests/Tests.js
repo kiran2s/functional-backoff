@@ -14,7 +14,7 @@ function assert(condition) {
 
 class Tests {
     constructor() {
-        this.backoffMethods = [{sync: true, rec: null}, {sync: false, rec: true}, {sync: false, rec: false}];
+        this.backoffMethods = [{sync: true}, {sync: false}];
         this.testCases = [];
 
         let propertyNames = Object.getOwnPropertyNames(Tests.prototype);
@@ -30,14 +30,14 @@ class Tests {
     async run() {
         for (let i = 0; i < this.backoffMethods.length; i++) {
             let backoffMethod = this.backoffMethods[i];
-            console.log("BACKOFF METHOD: sync = " + backoffMethod.sync + ", rec = " + backoffMethod.rec);
+            console.log("BACKOFF METHOD: sync = " + backoffMethod.sync);
             console.log("");
             
             for (let j = 0; j < this.testCases.length; j++) {
                 let testCase = this.testCases[j]();
                 console.log(testCase.name + ":");
                 try {
-                    let resolveVal = await testCase.test(backoffMethod.sync, backoffMethod.rec);
+                    let resolveVal = await testCase.test(backoffMethod.sync);
                     console.log("RESOLVE: " + resolveVal);
                     assert(resolveVal === testCase.answer)
                 }
@@ -55,7 +55,7 @@ class Tests {
     testCase0() {
         return {
             name: "TEST 0",
-            test: function(sync, rec) {
+            test: function(sync) {
                 let n = 0;
                 let initTime = Date.now();
                 return new FunctionalBackoff(
@@ -78,7 +78,7 @@ class Tests {
                     0,
                     10000,
                     true
-                ).run(sync, rec);
+                ).run(sync);
             },
             answer: false
         };
@@ -87,7 +87,7 @@ class Tests {
     testCase1() {
         return {
             name: "TEST 1",
-            test: function(sync, rec) {
+            test: function(sync) {
                 let initTime = Date.now();
                 let n = 0;
                 return new FunctionalBackoff(
@@ -109,7 +109,7 @@ class Tests {
                     10,
                     10000,
                     true
-                ).run(sync, rec);
+                ).run(sync);
             },
             answer: true
         };
@@ -118,7 +118,7 @@ class Tests {
     testCase2() {
         return {
             name: "TEST 2",
-            test: function(sync, rec) {
+            test: function(sync) {
                 let initTime = Date.now();
                 let n = 0;
                 return new FunctionalBackoff(
@@ -140,7 +140,7 @@ class Tests {
                     6,
                     10000,
                     true
-                ).run(sync, rec);
+                ).run(sync);
             },
             answer: true
         };
@@ -149,7 +149,7 @@ class Tests {
     testCase3() {
         return {
             name: "TEST 3",
-            test: function(sync, rec) {
+            test: function(sync) {
                 let initTime = Date.now();
                 let n = 0;
                 return new FunctionalBackoff(
@@ -171,7 +171,7 @@ class Tests {
                     5,
                     10000,
                     true
-                ).run(sync, rec);
+                ).run(sync);
             },
             answer: false
         }
@@ -180,7 +180,7 @@ class Tests {
     testCase4() {
         return {
             name: "TEST 4",
-            test: function(sync, rec) {
+            test: function(sync) {
                 let initTime = Date.now();
                 let n = 0;
                 return new FunctionalBackoff(
@@ -202,7 +202,7 @@ class Tests {
                     5,
                     10000,
                     true
-                ).run(sync, rec);
+                ).run(sync);
             },
             answer: true
         };
@@ -211,7 +211,7 @@ class Tests {
     testCase5() {
         return {
             name: "TEST 5",
-            test: function(sync, rec) {
+            test: function(sync) {
                 let initTime = Date.now();
                 let n = 0;
                 let sleepAmt = 5000;
@@ -237,7 +237,7 @@ class Tests {
                     10,
                     1200,
                     true
-                ).run(sync, rec);
+                ).run(sync);
             },
             answer: true
         };
