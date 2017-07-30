@@ -2,39 +2,41 @@
 
 class FunctionalBackoff {
     constructor(service, nextDelay, initDelay, maxRetries, syncTimeout = null, debug = false) {
-        let _this = this;
-        this.service = function(retryNum) {
-            return new Promise(function(resolve, reject) {
-                service()
-                    .then(() => {
-                        resolve(true);
-                    })
-                    .catch(() => {
-                        if (retryNum >= _this.MAX_RETRIES - 1) {
-                            resolve(false);
-                        }
-                        else {
-                            reject();
-                        }
-                    });
-            });
+        if (service) {
+            this.service = service;
         }
 
         this.nextDelay = nextDelay;
-        this.delayAmt = initDelay;
-        this.MAX_RETRIES = maxRetries;
+        this.initDelay = initDelay;
+        this.maxRetries = maxRetries;
         this.syncTimeout = syncTimeout;
         this.debug = debug;
 
         this.initTime = Date.now();
     }
 
-    run(sync = true) {
-        return sync === true ? this.runSync() : this.runAsync();
+    run(sync = true, service, nextDelay, initDelay, maxRetries, syncTimeout) {
+        return sync === true ?
+            this.runSync(service, nextDelay, initDelay, maxRetries, syncTimeout) :
+            this.runAsync(service, nextDelay, initDelay, maxRetries);
     }
 
-    runSync() {
-        if (this.MAX_RETRIES <= 0) {
+    runSync(service, nextDelay, initDelay, maxRetries, syncTimeout) {
+        service = service || this.service;
+        service = this.wrapService(service);
+        nextDelay = nextDelay || this.nextDelay;
+        if (typeof initDelay === "undefined" || initDelay === null) {
+            initDelay = this.initDelay;
+        }
+        let delayAmt = initDelay;
+        if (typeof maxRetries === "undefined" || maxRetries === null) {
+            maxRetries = this.maxRetries;
+        }
+        if (typeof syncTimeout === "undefined" || syncTimeout === null) {
+            syncTimeout = this.syncTimeout;
+        }
+
+        if (maxRetries <= 0) {
             return new Promise(resolve => resolve(false));
         }
 
@@ -49,7 +51,7 @@ class FunctionalBackoff {
             let eventuallyPerformAnotherRetry = true;
             let attemptService = function() {
                 return new Promise(function(resolve) {
-                    _this.service(numRetries)
+                    service(numRetries, maxRetries)
                         .then(resolveVal => {
                             eventuallyPerformAnotherRetry = false;
                             if (resolveVal === true) {
@@ -67,11 +69,11 @@ class FunctionalBackoff {
                                 _this.log("FAILURE");
                                 numRetries++;
                                 if (numRetries > 1) {
-                                    _this.delayAmt = _this.nextDelay(_this.delayAmt);
+                                    delayAmt = nextDelay(delayAmt);
                                 }
                                 setTimeout(
                                     () => retry().then(resolveVal => resolve(resolveVal)),
-                                    _this.delayAmt
+                                    delayAmt
                                 );
                             }
                         });
@@ -87,17 +89,17 @@ class FunctionalBackoff {
                                 _this.log("TIMEOUT");
                                 numRetries++;
                                 if (numRetries > 1) {
-                                    _this.delayAmt = _this.nextDelay(_this.delayAmt);
+                                    delayAmt = nextDelay(delayAmt);
                                 }
                                 retry().then(resolveVal => resolve(resolveVal));
                             }
                         },
-                        _this.syncTimeout
+                        syncTimeout
                     );
                 });
             }
 
-            if (_this.syncTimeout === null) {
+            if (syncTimeout === null) {
                 return attemptService();
             }
             else {
@@ -113,8 +115,19 @@ class FunctionalBackoff {
         return retry();
     }
 
-    runAsync() {
-        if (this.MAX_RETRIES <= 0) {
+    runAsync(service, nextDelay, initDelay, maxRetries) {
+        service = service || this.service;
+        service = this.wrapService(service);
+        nextDelay = nextDelay || this.nextDelay;
+        if (typeof initDelay === "undefined" || initDelay === null) {
+            initDelay = this.initDelay;
+        }
+        let delayAmt = initDelay;
+        if (typeof maxRetries === "undefined" || maxRetries === null) {
+            maxRetries = this.maxRetries;
+        }
+
+        if (maxRetries <= 0) {
             return new Promise(resolve => resolve(false));
         }
 
@@ -123,7 +136,7 @@ class FunctionalBackoff {
 
         let attemptService = function(retryNum) {
             return new Promise(function(resolve) {
-                _this.service(retryNum)
+                service(retryNum, maxRetries)
                     .then(resolveVal => {
                         if (resolveVal === true) {
                             serviceSuccessful = true;
@@ -142,13 +155,13 @@ class FunctionalBackoff {
 
         let retryAfterDelay = function(retryNum) {
             return new Promise(function(resolve) {
-                if (retryNum < _this.MAX_RETRIES) {
+                if (retryNum < maxRetries) {
                     if (retryNum > 1) {
-                        _this.delayAmt = _this.nextDelay(_this.delayAmt);
+                        delayAmt = nextDelay(delayAmt);
                     }
                     setTimeout(
                         () => retry(retryNum).then(resolveVal => resolve(resolveVal)),
-                        _this.delayAmt
+                        delayAmt
                     );
                 }
             });
@@ -168,6 +181,25 @@ class FunctionalBackoff {
         }
 
         return retry(0);
+    }
+
+    wrapService(service) {
+        return function(retryNum, maxRetries) {
+            return new Promise(function(resolve, reject) {
+                service()
+                    .then(() => {
+                        resolve(true);
+                    })
+                    .catch(() => {
+                        if (retryNum >= maxRetries - 1) {
+                            resolve(false);
+                        }
+                        else {
+                            reject();
+                        }
+                    });
+            });
+        };
     }
 
     log(msg) {

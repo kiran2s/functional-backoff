@@ -56,19 +56,18 @@ class Tests {
         return {
             name: "TEST 0",
             test: function(sync) {
-                let n = 0;
                 let initTime = Date.now();
+                let n = 0;
                 return new FunctionalBackoff(
                     function() {
+                        let callNum = n++;
                         return new Promise(async function(resolve, reject) {
                             console.log(Date.now() - initTime + ": Service requested");
                             await sleep(1000);
-                            if (n === 5) {
-                                n = 0;
+                            if (callNum === 5) {
                                 resolve();
                             }
                             else {
-                                n++;
                                 reject();
                             }
                         });
