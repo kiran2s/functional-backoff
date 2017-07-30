@@ -32,7 +32,7 @@ class FunctionalBackoff {
         if (typeof maxRetries === "undefined" || maxRetries === null) {
             maxRetries = this.maxRetries;
         }
-        if (typeof syncTimeout === "undefined" || syncTimeout === null) {
+        if (typeof syncTimeout === "undefined") {
             syncTimeout = this.syncTimeout;
         }
 
