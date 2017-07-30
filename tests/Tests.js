@@ -15,22 +15,31 @@ function assert(condition) {
 class Tests {
     constructor() {
         this.backoffMethods = [{sync: true, rec: null}, {sync: false, rec: true}, {sync: false, rec: false}];
-        this.tests = [this.test0, this.test1, this.test2, this.test3, this.test4, this.test5];
-        this.answers = [false, true, true, false, true, true];
+        this.testCases = [];
+
+        let propertyNames = Object.getOwnPropertyNames(Tests.prototype);
+        for (let i = 0; i < propertyNames.length; i++) {
+            let propertyName = propertyNames[i];
+            let match = propertyName.match(/^testCase\d+$/);
+            if (match !== null) {
+                this.testCases.push(this[propertyName]);
+            }
+        }
     }
 
     async run() {
-        for (var i = 0; i < this.backoffMethods.length; i++) {
+        for (let i = 0; i < this.backoffMethods.length; i++) {
             let backoffMethod = this.backoffMethods[i];
             console.log("BACKOFF METHOD: sync = " + backoffMethod.sync + ", rec = " + backoffMethod.rec);
             console.log("");
-            for (var j = 0; j < this.tests.length; j++) {
-                let test = this.tests[j].bind(this);
-                console.log("TEST " + j + ":");
+            
+            for (let j = 0; j < this.testCases.length; j++) {
+                let testCase = this.testCases[j]();
+                console.log(testCase.name + ":");
                 try {
-                    let resolveVal = await test(backoffMethod.sync, backoffMethod.rec);
+                    let resolveVal = await testCase.test(backoffMethod.sync, backoffMethod.rec);
                     console.log("RESOLVE: " + resolveVal);
-                    assert(resolveVal === this.answers[j])
+                    assert(resolveVal === testCase.answer)
                 }
                 catch(e) {
                     console.log("REJECT: " + e);
@@ -43,164 +52,195 @@ class Tests {
         console.log("*** ALL TESTS PASSED ***");
     }
 
-    test0(sync, rec) {
-        let n = 0;
-        let initTime = Date.now();
-        return new FunctionalBackoff(
-            function() {
-                return new Promise(async function(resolve, reject) {
-                    console.log(Date.now() - initTime + ": Service requested");
-                    await sleep(1000);
-                    if (n === 5) {
-                        n = 0;
-                        resolve();
-                    }
-                    else {
-                        n++;
-                        reject();
-                    }
-                });
+    testCase0() {
+        return {
+            name: "TEST 0",
+            test: function(sync, rec) {
+                let n = 0;
+                let initTime = Date.now();
+                return new FunctionalBackoff(
+                    function() {
+                        return new Promise(async function(resolve, reject) {
+                            console.log(Date.now() - initTime + ": Service requested");
+                            await sleep(1000);
+                            if (n === 5) {
+                                n = 0;
+                                resolve();
+                            }
+                            else {
+                                n++;
+                                reject();
+                            }
+                        });
+                    },
+                    (delayAmt => 2 * delayAmt),
+                    100,
+                    0,
+                    10000,
+                    true
+                ).run(sync, rec);
             },
-            (delayAmt => 2 * delayAmt),
-            100,
-            0,
-            null,
-            true
-        ).run(sync, rec);
+            answer: false
+        };
     }
 
-    test1(sync, rec) {
-        let n = 0;
-        let initTime = Date.now();
-        return new FunctionalBackoff(
-            function() {
-                return new Promise(async function(resolve, reject) {
-                    console.log(Date.now() - initTime + ": Service requested");
-                    await sleep(1000);
-                    if (n === 5) {
-                        n = 0;
-                        resolve();
-                    }
-                    else {
-                        n++;
-                        reject();
-                    }
-                });
+    testCase1() {
+        return {
+            name: "TEST 1",
+            test: function(sync, rec) {
+                let initTime = Date.now();
+                let n = 0;
+                return new FunctionalBackoff(
+                    function() {
+                        let callNum = n++;
+                        return new Promise(async function(resolve, reject) {
+                            console.log(Date.now() - initTime + ": Service requested");
+                            await sleep(1000);
+                            if (callNum === 5) {
+                                resolve();
+                            }
+                            else {
+                                reject();
+                            }
+                        });
+                    },
+                    (delayAmt => 100 + delayAmt),
+                    100,
+                    10,
+                    10000,
+                    true
+                ).run(sync, rec);
             },
-            (delayAmt => 100 + delayAmt),
-            100,
-            10,
-            null,
-            true
-        ).run(sync, rec);
+            answer: true
+        };
     }
 
-    test2(sync, rec) {
-        let n = 0;
-        let initTime = Date.now();
-        return new FunctionalBackoff(
-            function() {
-                return new Promise(async function(resolve, reject) {
-                    console.log(Date.now() - initTime + ": Service requested");
-                    await sleep(1000);
-                    if (n === 5) {
-                        n = 0;
-                        resolve();
-                    }
-                    else {
-                        n++;
-                        reject();
-                    }
-                });
+    testCase2() {
+        return {
+            name: "TEST 2",
+            test: function(sync, rec) {
+                let initTime = Date.now();
+                let n = 0;
+                return new FunctionalBackoff(
+                    function() {
+                        let callNum = n++;
+                        return new Promise(async function(resolve, reject) {
+                            console.log(Date.now() - initTime + ": Service requested");
+                            await sleep(1000);
+                            if (callNum === 5) {
+                                resolve();
+                            }
+                            else {
+                                reject();
+                            }
+                        });
+                    },
+                    (delayAmt => 0.5 * delayAmt),
+                    1000,
+                    6,
+                    10000,
+                    true
+                ).run(sync, rec);
             },
-            (delayAmt => 0.5 * delayAmt),
-            1000,
-            6,
-            null,
-            true
-        ).run(sync, rec);
+            answer: true
+        };
     }
 
-    test3(sync, rec) {
-        let n = 0;
-        let initTime = Date.now();
-        return new FunctionalBackoff(
-            function() {
-                return new Promise(async function(resolve, reject) {
-                    console.log(Date.now() - initTime + ": Service requested");
-                    await sleep(1000);
-                    if (n === 5) {
-                        n = 0;
-                        resolve();
-                    }
-                    else {
-                        n++;
-                        reject();
-                    }
-                });
+    testCase3() {
+        return {
+            name: "TEST 3",
+            test: function(sync, rec) {
+                let initTime = Date.now();
+                let n = 0;
+                return new FunctionalBackoff(
+                    function() {
+                        let callNum = n++;
+                        return new Promise(async function(resolve, reject) {
+                            console.log(Date.now() - initTime + ": Service requested");
+                            await sleep(1000);
+                            if (callNum === 5) {
+                                resolve();
+                            }
+                            else {
+                                reject();
+                            }
+                        });
+                    },
+                    (delayAmt => 2 * delayAmt),
+                    100,
+                    5,
+                    10000,
+                    true
+                ).run(sync, rec);
             },
-            (delayAmt => 2 * delayAmt),
-            100,
-            5,
-            null,
-            true
-        ).run(sync, rec);
+            answer: false
+        }
     }
 
-    test4(sync, rec) {
-        let n = 0;
-        let initTime = Date.now();
-        return new FunctionalBackoff(
-            function() {
-                return new Promise(async function(resolve, reject) {
-                    console.log(Date.now() - initTime + ": Service requested");
-                    await sleep(4000);
-                    if (n === 2) {
-                        n = 0;
-                        resolve();
-                    }
-                    else {
-                        n++;
-                        reject();
-                    }
-                });
+    testCase4() {
+        return {
+            name: "TEST 4",
+            test: function(sync, rec) {
+                let initTime = Date.now();
+                let n = 0;
+                return new FunctionalBackoff(
+                    function() {
+                        let callNum = n++;
+                        return new Promise(async function(resolve, reject) {
+                            console.log(Date.now() - initTime + ": Service requested");
+                            await sleep(4000);
+                            if (callNum === 2) {
+                                resolve();
+                            }
+                            else {
+                                reject();
+                            }
+                        });
+                    },
+                    (delayAmt => delayAmt),
+                    400,
+                    5,
+                    10000,
+                    true
+                ).run(sync, rec);
             },
-            (delayAmt => delayAmt),
-            400,
-            5,
-            null,
-            true
-        ).run(sync, rec);
+            answer: true
+        };
     }
 
-    test5(sync, rec) {
-        let n = 0;
-        let sleepAmt = 5000;
-        let initTime = Date.now();
-        return new FunctionalBackoff(
-            function() {
-                return new Promise(async function(resolve, reject) {
-                    console.log(Date.now() - initTime + ": Service requested");
-                    let callNum = n++;
-                    if (sleepAmt >= 1000) {
-                        sleepAmt -= 1000;
-                    }
-                    await sleep(sleepAmt);
-                    if (callNum === 2) {
-                        n = 0;
-                        resolve();
-                    }
-                    else {
-                        reject();
-                    }
-                });
+    testCase5() {
+        return {
+            name: "TEST 5",
+            test: function(sync, rec) {
+                let initTime = Date.now();
+                let n = 0;
+                let sleepAmt = 5000;
+                return new FunctionalBackoff(
+                    function() {
+                        let callNum = n++;
+                        if (sleepAmt >= 1000) {
+                            sleepAmt -= 1000;
+                        }
+                        return new Promise(async function(resolve, reject) {
+                            console.log(Date.now() - initTime + ": Service requested");
+                            await sleep(sleepAmt);
+                            if (callNum === 2) {
+                                resolve();
+                            }
+                            else {
+                                reject();
+                            }
+                        });
+                    },
+                    (delayAmt => delayAmt),
+                    400,
+                    10,
+                    1200,
+                    true
+                ).run(sync, rec);
             },
-            (delayAmt => delayAmt),
-            400,
-            10,
-            1200,
-            true
-        ).run(sync, rec);
+            answer: true
+        };
     }
 }
 
