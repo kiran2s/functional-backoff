@@ -1,5 +1,11 @@
 'use strict';
 
-var FunctionalBackoff = require('./src/FunctionalBackoff');
+var Backoff = require('./src/Backoff');
+var ExponentialBackoff = require('./src/ExponentialBackoff');
+var FibonacciBackoff = require('./src/FibonacciBackoff');
 
-module.exports = FunctionalBackoff;
+module.exports = {
+    Backoff: Backoff,
+    ExponentialBackoff: ExponentialBackoff,
+    FibonacciBackoff: FibonacciBackoff 
+};

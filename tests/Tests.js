@@ -1,6 +1,6 @@
 'use strict';
 
-var FunctionalBackoff = require('./../src/FunctionalBackoff');
+var Backoff = require('./../index.js');
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -58,7 +58,7 @@ class Tests {
             test: function(sync) {
                 let initTime = Date.now();
                 let n = 0;
-                return new FunctionalBackoff(
+                return new Backoff(
                     function() {
                         let callNum = n++;
                         return new Promise(async function(resolve, reject) {
@@ -89,7 +89,7 @@ class Tests {
             test: function(sync) {
                 let initTime = Date.now();
                 let n = 0;
-                return new FunctionalBackoff(
+                return new Backoff(
                     function() {
                         let callNum = n++;
                         return new Promise(async function(resolve, reject) {
@@ -120,7 +120,7 @@ class Tests {
             test: function(sync) {
                 let initTime = Date.now();
                 let n = 0;
-                return new FunctionalBackoff(
+                return new Backoff(
                     function() {
                         let callNum = n++;
                         return new Promise(async function(resolve, reject) {
@@ -151,7 +151,7 @@ class Tests {
             test: function(sync) {
                 let initTime = Date.now();
                 let n = 0;
-                return new FunctionalBackoff(
+                return new Backoff(
                     function() {
                         let callNum = n++;
                         return new Promise(async function(resolve, reject) {
@@ -182,7 +182,7 @@ class Tests {
             test: function(sync) {
                 let initTime = Date.now();
                 let n = 0;
-                return new FunctionalBackoff(
+                return new Backoff(
                     function() {
                         let callNum = n++;
                         return new Promise(async function(resolve, reject) {
@@ -214,7 +214,7 @@ class Tests {
                 let initTime = Date.now();
                 let n = 0;
                 let sleepAmt = 5000;
-                return new FunctionalBackoff(
+                return new Backoff(
                     function() {
                         let callNum = n++;
                         if (sleepAmt >= 1000) {

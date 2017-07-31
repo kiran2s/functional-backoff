@@ -1,6 +1,6 @@
 'use strict';
 
-class FunctionalBackoff {
+class Backoff {
     constructor(service, nextDelay, initDelay, maxRetries, syncTimeout = null, debug = false) {
         if (service) {
             this.service = service;
@@ -208,4 +208,4 @@ class FunctionalBackoff {
     }
 }
 
-module.exports = FunctionalBackoff;
+module.exports = Backoff;
