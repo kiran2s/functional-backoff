@@ -28,7 +28,6 @@ class Backoff {
         if (typeof initDelay === "undefined" || initDelay === null) {
             initDelay = this.initDelay;
         }
-        let delayAmt = initDelay;
         if (typeof maxRetries === "undefined" || maxRetries === null) {
             maxRetries = this.maxRetries;
         }
@@ -42,13 +41,24 @@ class Backoff {
 
         let serviceSuccessful = false;
         let _this = this;
-        let retry = function(retryNum) {
+        let retry = function(retryNum, delayAmt) {
             if (serviceSuccessful === true) {
                 return new Promise(() => {});
             }
 
+            let failureHandler = function(retryNum, delayAmt, resolve) {
+                retryNum++;
+                if (retryNum > 1) {
+                    delayAmt = nextDelay(delayAmt);
+                }
+                setTimeout(
+                    () => retry(retryNum, delayAmt).then(resolveVal => resolve(resolveVal)),
+                    delayAmt
+                );
+            };
+
             let eventuallyPerformAnotherRetry = true;
-            let attemptService = function(retryNum) {
+            let attemptService = function(retryNum, delayAmt) {
                 return new Promise(function(resolve) {
                     service(retryNum, maxRetries)
                         .then(resolveVal => {
@@ -66,31 +76,20 @@ class Backoff {
                             if (eventuallyPerformAnotherRetry === true) {
                                 eventuallyPerformAnotherRetry = false;
                                 _this.log("FAILURE");
-                                retryNum++;
-                                if (retryNum > 1) {
-                                    delayAmt = nextDelay(delayAmt);
-                                }
-                                setTimeout(
-                                    () => retry(retryNum).then(resolveVal => resolve(resolveVal)),
-                                    delayAmt
-                                );
+                                failureHandler(retryNum, delayAmt, resolve);
                             }
                         });
                 });
             }
 
-            let retryAfterTimeout = function(retryNum) {
+            let retryAfterTimeout = function(retryNum, delayAmt) {
                 return new Promise(function(resolve) {
                     setTimeout(
                         () => {
                             if (eventuallyPerformAnotherRetry === true) {
                                 eventuallyPerformAnotherRetry = false;
                                 _this.log("TIMEOUT");
-                                retryNum++;
-                                if (retryNum > 1) {
-                                    delayAmt = nextDelay(delayAmt);
-                                }
-                                retry(retryNum).then(resolveVal => resolve(resolveVal));
+                                failureHandler(retryNum, delayAmt, resolve);
                             }
                         },
                         syncTimeout
@@ -99,19 +98,19 @@ class Backoff {
             }
 
             if (syncTimeout === null) {
-                return attemptService(retryNum);
+                return attemptService(retryNum, delayAmt);
             }
             else {
                 return Promise.race(
                     [
-                        attemptService(retryNum),
-                        retryAfterTimeout(retryNum)
+                        attemptService(retryNum, delayAmt),
+                        retryAfterTimeout(retryNum, delayAmt)
                     ]
                 );
             }
         }
 
-        return retry(0);
+        return retry(0, initDelay);
     }
 
     runAsync(service, nextDelay, initDelay, maxRetries) {
@@ -121,7 +120,6 @@ class Backoff {
         if (typeof initDelay === "undefined" || initDelay === null) {
             initDelay = this.initDelay;
         }
-        let delayAmt = initDelay;
         if (typeof maxRetries === "undefined" || maxRetries === null) {
             maxRetries = this.maxRetries;
         }
@@ -152,21 +150,21 @@ class Backoff {
             });
         };
 
-        let retryAfterDelay = function(retryNum) {
+        let retryAfterDelay = function(retryNum, delayAmt) {
             return new Promise(function(resolve) {
                 if (retryNum < maxRetries) {
                     if (retryNum > 1) {
                         delayAmt = nextDelay(delayAmt);
                     }
                     setTimeout(
-                        () => retry(retryNum).then(resolveVal => resolve(resolveVal)),
+                        () => retry(retryNum, delayAmt).then(resolveVal => resolve(resolveVal)),
                         delayAmt
                     );
                 }
             });
         };
 
-        let retry = function(retryNum) {
+        let retry = function(retryNum, delayAmt) {
             if (serviceSuccessful === true) {
                 return new Promise(() => {});
             }
@@ -174,12 +172,12 @@ class Backoff {
             return Promise.race(
                 [
                     attemptService(retryNum),
-                    retryAfterDelay(retryNum + 1)
+                    retryAfterDelay(retryNum + 1, delayAmt)
                 ]
             );
         }
 
-        return retry(0);
+        return retry(0, initDelay);
     }
 
     wrapService(service) {

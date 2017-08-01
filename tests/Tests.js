@@ -1,6 +1,6 @@
 'use strict';
 
-var Backoff = require('./../index.js');
+var Backoff = require('./../index.js').Backoff;
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
