@@ -1,13 +1,13 @@
 'use strict';
 
 class Backoff {
-    constructor(service, nextDelay, initDelay, maxRetries, syncTimeout = null, debug = false) {
+    constructor(service, nextDelay, initialDelay, maxRetries, syncTimeout = null, debug = false) {
         if (service) {
             this.service = service;
         }
 
         this.nextDelay = nextDelay;
-        this.initDelay = initDelay;
+        this.initialDelay = initialDelay;
         this.maxRetries = maxRetries;
         this.syncTimeout = syncTimeout;
         this.debug = debug;
@@ -15,18 +15,18 @@ class Backoff {
         this.initTime = Date.now();
     }
 
-    run(sync = true, service, nextDelay, initDelay, maxRetries, syncTimeout) {
+    run(sync = true, service, nextDelay, initialDelay, maxRetries, syncTimeout) {
         return sync === true ?
-            this.runSync(service, nextDelay, initDelay, maxRetries, syncTimeout) :
-            this.runAsync(service, nextDelay, initDelay, maxRetries);
+            this.runSync(service, nextDelay, initialDelay, maxRetries, syncTimeout) :
+            this.runAsync(service, nextDelay, initialDelay, maxRetries);
     }
 
-    runSync(service, nextDelay, initDelay, maxRetries, syncTimeout) {
+    runSync(service, nextDelay, initialDelay, maxRetries, syncTimeout) {
         service = service || this.service;
         service = this.wrapService(service);
         nextDelay = nextDelay || this.nextDelay;
-        if (typeof initDelay === "undefined" || initDelay === null) {
-            initDelay = this.initDelay;
+        if (typeof initialDelay === "undefined" || initialDelay === null) {
+            initialDelay = this.initialDelay;
         }
         if (typeof maxRetries === "undefined" || maxRetries === null) {
             maxRetries = this.maxRetries;
@@ -110,15 +110,15 @@ class Backoff {
             }
         }
 
-        return retry(0, initDelay);
+        return retry(0, initialDelay);
     }
 
-    runAsync(service, nextDelay, initDelay, maxRetries) {
+    runAsync(service, nextDelay, initialDelay, maxRetries) {
         service = service || this.service;
         service = this.wrapService(service);
         nextDelay = nextDelay || this.nextDelay;
-        if (typeof initDelay === "undefined" || initDelay === null) {
-            initDelay = this.initDelay;
+        if (typeof initialDelay === "undefined" || initialDelay === null) {
+            initialDelay = this.initialDelay;
         }
         if (typeof maxRetries === "undefined" || maxRetries === null) {
             maxRetries = this.maxRetries;
@@ -177,7 +177,7 @@ class Backoff {
             );
         }
 
-        return retry(0, initDelay);
+        return retry(0, initialDelay);
     }
 
     wrapService(service) {

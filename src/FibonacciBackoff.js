@@ -3,39 +3,39 @@
 var Backoff = require('./Backoff');
 
 class FibonacciBackoff extends Backoff {
-    constructor(service, initDelay, maxRetries, syncTimeout = null, debug = false) {
-        let nextDelay = this.makeNextDelay(initDelay);
-        super(service, nextDelay, initDelay, maxRetries, syncTimeout, debug);
+    constructor(service, initialDelay, maxRetries, syncTimeout = null, debug = false) {
+        let nextDelay = this.makeNextDelay(initialDelay);
+        super(service, nextDelay, initialDelay, maxRetries, syncTimeout, debug);
     }
 
-    run(sync = true, service, factor, initDelay, maxRetries, syncTimeout) {
+    run(sync = true, service, factor, initialDelay, maxRetries, syncTimeout) {
         return sync === true ?
-            this.runSync(service, factor, initDelay, maxRetries, syncTimeout) :
-            this.runAsync(service, factor, initDelay, maxRetries);
+            this.runSync(service, factor, initialDelay, maxRetries, syncTimeout) :
+            this.runAsync(service, factor, initialDelay, maxRetries);
     }
 
-    runSync(service, factor, initDelay, maxRetries, syncTimeout) {
-        let nextDelay = this.makeNextDelay(initDelay);
-        return super.runSync(service, nextDelay, initDelay, maxRetries, syncTimeout);
+    runSync(service, factor, initialDelay, maxRetries, syncTimeout) {
+        let nextDelay = this.makeNextDelay(initialDelay);
+        return super.runSync(service, nextDelay, initialDelay, maxRetries, syncTimeout);
     }
 
-    runAsync(service, factor, initDelay, maxRetries) {
-        let nextDelay = this.makeNextDelay(initDelay);
-        return super.runAsync(service, nextDelay, initDelay, maxRetries);
+    runAsync(service, factor, initialDelay, maxRetries) {
+        let nextDelay = this.makeNextDelay(initialDelay);
+        return super.runAsync(service, nextDelay, initialDelay, maxRetries);
     }
 
-    makeNextDelay(initDelay) {
-        let nextDelayGenerator = function*(initDelay) {
+    makeNextDelay(initialDelay) {
+        let nextDelayGenerator = function*(initialDelay) {
             let fn1, fn2;
-            if (Array.isArray(initDelay)) {
-                fn1 = initDelay[0];
-                fn2 = initDelay[1];
+            if (Array.isArray(initialDelay)) {
+                fn1 = initialDelay[0];
+                fn2 = initialDelay[1];
                 if (typeof fn2 === "undefined" || fn2 === null) {
                     fn2 = fn1;
                 }
             }
             else {
-                fn1 = fn2 = initDelay;
+                fn1 = fn2 = initialDelay;
             }
 
             for (;;) {
@@ -44,7 +44,7 @@ class FibonacciBackoff extends Backoff {
                 fn2 = fnCurr + fn2;
                 yield fnCurr;
             }
-        }(initDelay);
+        }(initialDelay);
 
         return function() {
             return nextDelayGenerator.next().value;
