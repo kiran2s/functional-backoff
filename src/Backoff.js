@@ -1,5 +1,7 @@
 'use strict';
 
+var maxRetriesExceptionMsg = "Maximum number of retries is not set to a positive value.";
+
 class Backoff {
     constructor(service, args, retryCondition, nextDelay, initialDelay, 
                 maxRetries, maxDelay, syncTimeout = null, debug = false) {
@@ -91,7 +93,7 @@ class Backoff {
         let syncTimeout = this.syncTimeout;
 
         if (maxRetries <= 0) {
-            return new Promise((resolve, reject) => reject("Max retries is not a positive number."));
+            return new Promise((resolve, reject) => reject(maxRetriesExceptionMsg));
         }
 
         let serviceSuccessful = false;
@@ -101,15 +103,15 @@ class Backoff {
                 return new Promise(() => {});
             }
 
-            let failureHandler = function(retryNum, delayAmt, resolve, reject) {
+            let prepareForRetry = function(retryNum, delayAmt, resolve, reject) {
                 retryNum++;
                 if (retryNum > 1) {
                     delayAmt = nextDelay(delayAmt, maxDelay);
                 }
                 setTimeout(
                     () => retry(retryNum, delayAmt)
-                        .then(function() { resolve(...Array.from(arguments)); })
-                        .catch(function() { reject(...Array.from(arguments)); }),
+                        .then(val => resolve(val))
+                        .catch(reason => reject(reason)),
                     delayAmt
                 );
             };
@@ -118,25 +120,23 @@ class Backoff {
             let attemptService = function(retryNum, delayAmt) {
                 return new Promise(function(resolve, reject) {
                     service(args, retryNum, maxRetries, retryCondition)
-                        .then(function(resolveVal) {
+                        .then(result => {
                             eventuallyPerformAnotherRetry = false;
-                            let results = Array.from(arguments);
-                            results.shift();
-                            if (resolveVal === true) {
+                            if (result.success === true) {
                                 serviceSuccessful = true;
                                 _this.log("SUCCESS");
-                                resolve(...results);
+                                resolve(result.value);
                             }
                             else {
                                 _this.log("FAILURE");
-                                reject(...results);
+                                reject(result.value);
                             }
                         })
                         .catch(() => {
                             if (eventuallyPerformAnotherRetry === true) {
                                 eventuallyPerformAnotherRetry = false;
                                 _this.log("RETRY");
-                                failureHandler(retryNum, delayAmt, resolve, reject);
+                                prepareForRetry(retryNum, delayAmt, resolve, reject);
                             }
                         });
                 });
@@ -149,7 +149,7 @@ class Backoff {
                             if (eventuallyPerformAnotherRetry === true) {
                                 eventuallyPerformAnotherRetry = false;
                                 _this.log("TIMEOUT");
-                                failureHandler(retryNum, delayAmt, resolve, reject);
+                                prepareForRetry(retryNum, delayAmt, resolve, reject);
                             }
                         },
                         syncTimeout
@@ -183,7 +183,7 @@ class Backoff {
         let maxDelay = this.maxDelay;
 
         if (maxRetries <= 0) {
-            return new Promise((resolve, reject) => reject("Max retries is not a positive number."));
+            return new Promise((resolve, reject) => reject(maxRetriesExceptionMsg));
         }
 
         let serviceSuccessful = false;
@@ -192,17 +192,15 @@ class Backoff {
         let attemptService = function(retryNum) {
             return new Promise(function(resolve, reject) {
                 service(args, retryNum, maxRetries, retryCondition)
-                    .then(function(resolveVal) {
-                        let results = Array.from(arguments);
-                        results.shift();
-                        if (resolveVal === true) {
+                    .then(result => {
+                        if (result.success === true) {
                             serviceSuccessful = true;
                             _this.log("SUCCESS");
-                            resolve(...results);
+                            resolve(result.value);
                         }
                         else {
                             _this.log("FAILURE");
-                            reject(...results);
+                            reject(result.value);
                         }
                     })
                     .catch(() => {
@@ -219,8 +217,8 @@ class Backoff {
                     }
                     setTimeout(
                         () => retry(retryNum, delayAmt)
-                            .then(function() { resolve(...Array.from(arguments)); })
-                            .catch(function() { reject(...Array.from(arguments)); }),
+                            .then(val => resolve(val))
+                            .catch(reason => reject(reason)),
                         delayAmt
                     );
                 }
@@ -247,20 +245,19 @@ class Backoff {
         return function(args, retryNum, maxRetries, retryCondition) {
             return new Promise(function(resolve, reject) {
                 service(...args)
-                    .then(function() {
-                        resolve(true, ...Array.from(arguments));
-                    })
-                    .catch(function() {
-                        let catchArgs = Array.from(arguments);
+                    .then(val =>
+                        resolve({ success: true, value: val })
+                    )
+                    .catch(reason => {
                         if (retryNum >= maxRetries - 1) {
-                            resolve(false, ...catchArgs);
+                            resolve({ success: false, value: reason });
                         }
                         else {
-                            if (retryCondition(Array.from(arguments))) {
-                                reject(catchArgs);
+                            if (retryCondition(reason)) {
+                                reject(reason);
                             }
                             else {
-                                resolve(false, ...catchArgs);
+                                resolve({ success: false, value: reason });
                             }
                         }
                     });

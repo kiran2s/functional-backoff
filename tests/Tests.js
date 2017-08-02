@@ -2,6 +2,8 @@
 
 var Backoff = require('./../index.js').Backoff;
 
+var maxRetriesExceptionMsg = "Maximum number of retries is not set to a positive value.";
+
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -42,7 +44,7 @@ class Tests {
                     assert(testCase.answer.resolves === true && testCase.answer.results === resolveVal);
                 }
                 catch(e) {
-                    console.log("REJECT: " + e + "\n");
+                    console.log("REJECT: " + e);
                     assert(testCase.answer.resolves === false && testCase.answer.results === e);
                 }
                 console.log("");
@@ -82,7 +84,7 @@ class Tests {
                     true
                 ).run(sync);
             },
-            answer: { resolves: false, results: "Max retries is not a positive number." }
+            answer: { resolves: false, results: maxRetriesExceptionMsg }
         };
     }
 
@@ -99,10 +101,10 @@ class Tests {
                             console.log(Date.now() - initTime + ": Service requested");
                             await sleep(1000);
                             if (callNum === 5) {
-                                resolve();
+                                resolve("resolved");
                             }
                             else {
-                                reject();
+                                reject("rejected");
                             }
                         });
                     },
@@ -116,7 +118,7 @@ class Tests {
                     true
                 ).run(sync);
             },
-            answer: { resolves: true, results: undefined }
+            answer: { resolves: true, results: "resolved" }
         };
     }
 
@@ -133,10 +135,10 @@ class Tests {
                             console.log(Date.now() - initTime + ": Service requested");
                             await sleep(1000);
                             if (callNum === 5) {
-                                resolve();
+                                resolve(1);
                             }
                             else {
-                                reject();
+                                reject(2);
                             }
                         });
                     },
@@ -150,7 +152,7 @@ class Tests {
                     true
                 ).run(sync);
             },
-            answer: { resolves: true, results: undefined }
+            answer: { resolves: true, results: 1 }
         };
     }
 
@@ -167,10 +169,10 @@ class Tests {
                             console.log(Date.now() - initTime + ": Service requested");
                             await sleep(1000);
                             if (callNum === 5) {
-                                resolve();
+                                resolve("resolved");
                             }
                             else {
-                                reject();
+                                reject("rejected");
                             }
                         });
                     },
@@ -184,7 +186,7 @@ class Tests {
                     true
                 ).run(sync);
             },
-            answer: { resolves: false, results: undefined }
+            answer: { resolves: false, results: "rejected" }
         }
     }
 
@@ -201,10 +203,10 @@ class Tests {
                             console.log(Date.now() - initTime + ": Service requested (" + arg + ")");
                             await sleep(4000);
                             if (callNum === 2) {
-                                resolve();
+                                resolve("resolved");
                             }
                             else {
-                                reject();
+                                reject("rejected");
                             }
                         });
                     },
@@ -218,7 +220,7 @@ class Tests {
                     true
                 ).run(sync);
             },
-            answer: { resolves: true, results: undefined }
+            answer: { resolves: true, results: "resolved" }
         };
     }
 
@@ -239,10 +241,10 @@ class Tests {
                             console.log(Date.now() - initTime + ": Service requested");
                             await sleep(sleepAmt);
                             if (callNum === 2) {
-                                resolve();
+                                resolve("resolved");
                             }
                             else {
-                                reject();
+                                reject("rejected");
                             }
                         });
                     },
@@ -256,7 +258,7 @@ class Tests {
                     true
                 ).run(sync);
             },
-            answer: { resolves: true, results: undefined }
+            answer: { resolves: true, results: "resolved" }
         };
     }
 }
