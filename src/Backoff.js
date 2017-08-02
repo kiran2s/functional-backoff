@@ -1,6 +1,7 @@
 'use strict';
 
 var maxRetriesExceptionMsg = "Maximum number of retries is not set to a positive value.";
+var serviceNotSetExceptionMsg = "Service must be set before running backoff.";
 
 class Backoff {
     constructor(service, args, retryCondition, nextDelay, initialDelay, 
@@ -19,7 +20,12 @@ class Backoff {
 
     setService(service, args) {
         this.args = args || this.args || [];
-        this.service = this.wrapService(service);
+        if (typeof service === "undefined" || service === null) {
+            this.service = null;
+        }
+        else {
+            this.service = this.wrapService(service);
+        }
         return this;
     }
 
@@ -91,6 +97,10 @@ class Backoff {
         let maxRetries = this.maxRetries;
         let maxDelay = this.maxDelay;
         let syncTimeout = this.syncTimeout;
+
+        if (service === null) {
+            return new Promise((resolve, reject) => reject(serviceNotSetExceptionMsg));
+        }
 
         if (maxRetries <= 0) {
             return new Promise((resolve, reject) => reject(maxRetriesExceptionMsg));
@@ -181,6 +191,10 @@ class Backoff {
         let initialDelay = this.initialDelay;
         let maxRetries = this.maxRetries;
         let maxDelay = this.maxDelay;
+
+        if (service === null) {
+            return new Promise((resolve, reject) => reject(serviceNotSetExceptionMsg));
+        }
 
         if (maxRetries <= 0) {
             return new Promise((resolve, reject) => reject(maxRetriesExceptionMsg));
