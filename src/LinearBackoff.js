@@ -8,22 +8,6 @@ class LinearBackoff extends Backoff {
         super(service, nextDelay, initialDelay, maxRetries, syncTimeout, debug);
     }
 
-    run(sync = true, service, offset, initialDelay, maxRetries, syncTimeout) {
-        return sync === true ?
-            this.runSync(service, offset, initialDelay, maxRetries, syncTimeout) :
-            this.runAsync(service, offset, initialDelay, maxRetries);
-    }
-
-    runSync(service, offset, initialDelay, maxRetries, syncTimeout) {
-        let nextDelay = this.makeNextDelay(offset);
-        return super.runSync(service, nextDelay, initialDelay, maxRetries, syncTimeout);
-    }
-
-    runAsync(service, offset, initialDelay, maxRetries) {
-        let nextDelay = this.makeNextDelay(offset);
-        return super.runAsync(service, nextDelay, initialDelay, maxRetries);
-    }
-
     makeNextDelay(offset) {
         return (delayAmt => { return delayAmt + offset });
     }

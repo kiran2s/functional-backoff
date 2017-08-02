@@ -1,42 +1,97 @@
 'use strict';
 
 class Backoff {
-    constructor(service, nextDelay, initialDelay, maxRetries, syncTimeout = null, debug = false) {
-        if (service) {
-            this.service = service;
-        }
-
-        this.nextDelay = nextDelay;
-        this.initialDelay = initialDelay;
-        this.maxRetries = maxRetries;
-        this.syncTimeout = syncTimeout;
-        this.debug = debug;
+    constructor(service, args, retryCondition, nextDelay, initialDelay, 
+                maxRetries, maxDelay, syncTimeout = null, debug = false) {
+        this.setService(service, args)
+            .setRetryCondition(retryCondition)
+            .setNextDelay(nextDelay)
+            .setInitialDelay(initialDelay)
+            .setMaxRetries(maxRetries)
+            .setMaxDelay(maxDelay)
+            .setSyncTimeout(syncTimeout)
+            .setDebugMode(debug);
 
         this.initTime = Date.now();
     }
 
-    run(sync = true, service, nextDelay, initialDelay, maxRetries, syncTimeout) {
-        return sync === true ?
-            this.runSync(service, nextDelay, initialDelay, maxRetries, syncTimeout) :
-            this.runAsync(service, nextDelay, initialDelay, maxRetries);
+    setService(service, args) {
+        this.args = args || this.args || [];
+        this.service = this.wrapService(service);
+        return this;
     }
 
-    runSync(service, nextDelay, initialDelay, maxRetries, syncTimeout) {
-        service = service || this.service;
-        service = this.wrapService(service);
-        nextDelay = nextDelay || this.nextDelay;
+    setServiceArgs(args) {
+        this.args = args;
+        return this;
+    }
+
+    setRetryCondition(retryCondition) {
+        this.retryCondition = retryCondition || (() => true);
+        return this;
+    }
+
+    setNextDelay(nextDelay) {
+        nextDelay = nextDelay || (delayAmt => delayAmt);
+        this.nextDelay = this.wrapNextDelay(nextDelay);
+        return this;
+    }
+
+    setInitialDelay(initialDelay) {
+        this.initialDelay = initialDelay;
         if (typeof initialDelay === "undefined" || initialDelay === null) {
-            initialDelay = this.initialDelay;
+            this.initialDelay = 100;
         }
+        return this;
+    }
+
+    setMaxRetries(maxRetries) {
+        this.maxRetries = maxRetries;
         if (typeof maxRetries === "undefined" || maxRetries === null) {
-            maxRetries = this.maxRetries;
+            this.maxRetries = 10;
         }
+        return this;
+    }
+
+    setMaxDelay(maxDelay) {
+        this.maxDelay = maxDelay;
+        if (typeof maxDelay === "undefined" || maxDelay === null) {
+            this.maxDelay = Infinity;
+        }
+        return this;
+    }
+
+    setSyncTimeout(syncTimeout) {
+        this.syncTimeout = syncTimeout;
         if (typeof syncTimeout === "undefined") {
-            syncTimeout = this.syncTimeout;
+            this.syncTimeout = null;
         }
+        return this;
+    }
+
+    setDebugMode(debug) {
+        this.debug = debug;
+        return this;
+    }
+
+    run(sync = true) {
+        return sync === true ?
+            this.runSync() :
+            this.runAsync();
+    }
+
+    runSync() {
+        let service = this.service;
+        let args = this.args;
+        let retryCondition = this.retryCondition;
+        let nextDelay = this.nextDelay;
+        let initialDelay = this.initialDelay;
+        let maxRetries = this.maxRetries;
+        let maxDelay = this.maxDelay;
+        let syncTimeout = this.syncTimeout;
 
         if (maxRetries <= 0) {
-            return new Promise(resolve => resolve(false));
+            return new Promise((resolve, reject) => reject("Max retries is not a positive number."));
         }
 
         let serviceSuccessful = false;
@@ -46,50 +101,55 @@ class Backoff {
                 return new Promise(() => {});
             }
 
-            let failureHandler = function(retryNum, delayAmt, resolve) {
+            let failureHandler = function(retryNum, delayAmt, resolve, reject) {
                 retryNum++;
                 if (retryNum > 1) {
-                    delayAmt = nextDelay(delayAmt);
+                    delayAmt = nextDelay(delayAmt, maxDelay);
                 }
                 setTimeout(
-                    () => retry(retryNum, delayAmt).then(resolveVal => resolve(resolveVal)),
+                    () => retry(retryNum, delayAmt)
+                        .then(function() { resolve(...Array.from(arguments)); })
+                        .catch(function() { reject(...Array.from(arguments)); }),
                     delayAmt
                 );
             };
 
             let eventuallyPerformAnotherRetry = true;
             let attemptService = function(retryNum, delayAmt) {
-                return new Promise(function(resolve) {
-                    service(retryNum, maxRetries)
-                        .then(resolveVal => {
+                return new Promise(function(resolve, reject) {
+                    service(args, retryNum, maxRetries, retryCondition)
+                        .then(function(resolveVal) {
                             eventuallyPerformAnotherRetry = false;
+                            let results = Array.from(arguments);
+                            results.shift();
                             if (resolveVal === true) {
                                 serviceSuccessful = true;
                                 _this.log("SUCCESS");
+                                resolve(...results);
                             }
                             else {
                                 _this.log("FAILURE");
+                                reject(...results);
                             }
-                            resolve(resolveVal);
                         })
                         .catch(() => {
                             if (eventuallyPerformAnotherRetry === true) {
                                 eventuallyPerformAnotherRetry = false;
-                                _this.log("FAILURE");
-                                failureHandler(retryNum, delayAmt, resolve);
+                                _this.log("RETRY");
+                                failureHandler(retryNum, delayAmt, resolve, reject);
                             }
                         });
                 });
             }
 
             let retryAfterTimeout = function(retryNum, delayAmt) {
-                return new Promise(function(resolve) {
+                return new Promise(function(resolve, reject) {
                     setTimeout(
                         () => {
                             if (eventuallyPerformAnotherRetry === true) {
                                 eventuallyPerformAnotherRetry = false;
                                 _this.log("TIMEOUT");
-                                failureHandler(retryNum, delayAmt, resolve);
+                                failureHandler(retryNum, delayAmt, resolve, reject);
                             }
                         },
                         syncTimeout
@@ -113,51 +173,54 @@ class Backoff {
         return retry(0, initialDelay);
     }
 
-    runAsync(service, nextDelay, initialDelay, maxRetries) {
-        service = service || this.service;
-        service = this.wrapService(service);
-        nextDelay = nextDelay || this.nextDelay;
-        if (typeof initialDelay === "undefined" || initialDelay === null) {
-            initialDelay = this.initialDelay;
-        }
-        if (typeof maxRetries === "undefined" || maxRetries === null) {
-            maxRetries = this.maxRetries;
-        }
+    runAsync() {
+        let service = this.service;
+        let args = this.args;
+        let retryCondition = this.retryCondition;
+        let nextDelay = this.nextDelay;
+        let initialDelay = this.initialDelay;
+        let maxRetries = this.maxRetries;
+        let maxDelay = this.maxDelay;
 
         if (maxRetries <= 0) {
-            return new Promise(resolve => resolve(false));
+            return new Promise((resolve, reject) => reject("Max retries is not a positive number."));
         }
 
         let serviceSuccessful = false;
         let _this = this;
 
         let attemptService = function(retryNum) {
-            return new Promise(function(resolve) {
-                service(retryNum, maxRetries)
-                    .then(resolveVal => {
+            return new Promise(function(resolve, reject) {
+                service(args, retryNum, maxRetries, retryCondition)
+                    .then(function(resolveVal) {
+                        let results = Array.from(arguments);
+                        results.shift();
                         if (resolveVal === true) {
                             serviceSuccessful = true;
                             _this.log("SUCCESS");
+                            resolve(...results);
                         }
                         else {
                             _this.log("FAILURE");
+                            reject(...results);
                         }
-                        resolve(resolveVal);
                     })
                     .catch(() => {
-                        _this.log("FAILURE");
+                        _this.log("RETRY");
                     });
             });
         };
 
         let retryAfterDelay = function(retryNum, delayAmt) {
-            return new Promise(function(resolve) {
+            return new Promise(function(resolve, reject) {
                 if (retryNum < maxRetries) {
                     if (retryNum > 1) {
-                        delayAmt = nextDelay(delayAmt);
+                        delayAmt = nextDelay(delayAmt, maxDelay);
                     }
                     setTimeout(
-                        () => retry(retryNum, delayAmt).then(resolveVal => resolve(resolveVal)),
+                        () => retry(retryNum, delayAmt)
+                            .then(function() { resolve(...Array.from(arguments)); })
+                            .catch(function() { reject(...Array.from(arguments)); }),
                         delayAmt
                     );
                 }
@@ -181,22 +244,38 @@ class Backoff {
     }
 
     wrapService(service) {
-        return function(retryNum, maxRetries) {
+        return function(args, retryNum, maxRetries, retryCondition) {
             return new Promise(function(resolve, reject) {
-                service()
-                    .then(() => {
-                        resolve(true);
+                service(...args)
+                    .then(function() {
+                        resolve(true, ...Array.from(arguments));
                     })
-                    .catch(() => {
+                    .catch(function() {
+                        let catchArgs = Array.from(arguments);
                         if (retryNum >= maxRetries - 1) {
-                            resolve(false);
+                            resolve(false, ...catchArgs);
                         }
                         else {
-                            reject();
+                            if (retryCondition(Array.from(arguments))) {
+                                reject(catchArgs);
+                            }
+                            else {
+                                resolve(false, ...catchArgs);
+                            }
                         }
                     });
             });
         };
+    }
+
+    wrapNextDelay(nextDelay) {
+        return function(delayAmt, maxDelay) {
+            let nextDelayAmt = nextDelay(delayAmt);
+            if (nextDelayAmt > maxDelay) {
+                nextDelayAmt = maxDelay;
+            }
+            return nextDelayAmt;
+        }
     }
 
     log(msg) {

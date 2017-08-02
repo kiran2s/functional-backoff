@@ -39,11 +39,11 @@ class Tests {
                 try {
                     let resolveVal = await testCase.test(backoffMethod.sync);
                     console.log("RESOLVE: " + resolveVal);
-                    assert(resolveVal === testCase.answer)
+                    assert(testCase.answer.resolves === true && testCase.answer.results === resolveVal);
                 }
                 catch(e) {
-                    console.log("REJECT: " + e);
-                    return;
+                    console.log("REJECT: " + e + "\n");
+                    assert(testCase.answer.resolves === false && testCase.answer.results === e);
                 }
                 console.log("");
             }
@@ -72,14 +72,17 @@ class Tests {
                             }
                         });
                     },
+                    null,
+                    null,
                     (delayAmt => 2 * delayAmt),
                     100,
                     0,
+                    200,
                     10000,
                     true
                 ).run(sync);
             },
-            answer: false
+            answer: { resolves: false, results: "Max retries is not a positive number." }
         };
     }
 
@@ -103,14 +106,17 @@ class Tests {
                             }
                         });
                     },
+                    null,
+                    null,
                     (delayAmt => 100 + delayAmt),
                     100,
                     10,
+                    null,
                     10000,
                     true
                 ).run(sync);
             },
-            answer: true
+            answer: { resolves: true, results: undefined }
         };
     }
 
@@ -134,14 +140,17 @@ class Tests {
                             }
                         });
                     },
+                    null,
+                    null,
                     (delayAmt => 0.5 * delayAmt),
                     1000,
                     6,
+                    null,
                     10000,
                     true
                 ).run(sync);
             },
-            answer: true
+            answer: { resolves: true, results: undefined }
         };
     }
 
@@ -165,14 +174,17 @@ class Tests {
                             }
                         });
                     },
+                    null,
+                    null,
                     (delayAmt => 2 * delayAmt),
                     100,
                     5,
+                    null,
                     10000,
                     true
                 ).run(sync);
             },
-            answer: false
+            answer: { resolves: false, results: undefined }
         }
     }
 
@@ -183,10 +195,10 @@ class Tests {
                 let initTime = Date.now();
                 let n = 0;
                 return new Backoff(
-                    function() {
+                    function(arg) {
                         let callNum = n++;
                         return new Promise(async function(resolve, reject) {
-                            console.log(Date.now() - initTime + ": Service requested");
+                            console.log(Date.now() - initTime + ": Service requested (" + arg + ")");
                             await sleep(4000);
                             if (callNum === 2) {
                                 resolve();
@@ -196,14 +208,17 @@ class Tests {
                             }
                         });
                     },
+                    [42],
+                    null,
                     (delayAmt => delayAmt),
                     400,
                     5,
+                    null,
                     10000,
                     true
                 ).run(sync);
             },
-            answer: true
+            answer: { resolves: true, results: undefined }
         };
     }
 
@@ -231,14 +246,17 @@ class Tests {
                             }
                         });
                     },
+                    null,
+                    null,
                     (delayAmt => delayAmt),
                     400,
                     10,
+                    null,
                     1200,
                     true
                 ).run(sync);
             },
-            answer: true
+            answer: { resolves: true, results: undefined }
         };
     }
 }
