@@ -3,9 +3,9 @@
 var Backoff = require('./Backoff');
 
 class ExponentialBackoff extends Backoff {
-    constructor(service, factor, initialDelay, maxRetries, syncTimeout = null, debug = false) {
+    constructor(service, args, retryCondition, factor, initialDelay, maxRetries, maxDelay, syncTimeout = null, debug = false) {
         let nextDelay = this.makeNextDelay(factor);
-        super(service, nextDelay, initialDelay, maxRetries, syncTimeout, debug);
+        super(service, args, retryCondition, nextDelay, initialDelay, maxRetries, maxDelay, syncTimeout, debug);
     }
 
     makeNextDelay(factor) {
