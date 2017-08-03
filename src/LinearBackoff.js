@@ -26,17 +26,35 @@ class LinearBackoff extends Backoff {
         return this;
     }
 
-    makeNextDelay(offset) {
-        return (delayAmt => { return delayAmt + offset });
-    }
-
     makeNextDelay(initialDelay, offset, mod) {
         let nextDelayGenerator = function*(initialDelay, offset) {
+            let delayAmt = initialDelay + offset;
+            for (;;) {
+                let reset = yield delayAmt;
+                if (reset) {
+                    delayAmt = initialDelay;
+                }
+                else {
+                    delayAmt += offset;
+                }
+            }
+        }(initialDelay, offset);
 
+        if (mod === null) {
+            return function() {
+                return nextDelayGenerator.next().value;
+            }
         }
-
-        return function() {
-            
+        else {
+            let i = 1;
+            return function() {
+                if (i === mod) {
+                    i = 1;
+                    return nextDelayGenerator.next(true).value;
+                }
+                i++;
+                return nextDelayGenerator.next().value;
+            }
         }
     }
 }

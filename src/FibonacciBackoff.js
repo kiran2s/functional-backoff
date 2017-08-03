@@ -4,8 +4,8 @@ var Backoff = require('./Backoff');
 
 class FibonacciBackoff extends Backoff {
     constructor(service, args, retryCondition, initialDelay, maxRetries, maxDelay, syncTimeout = null, debug = false) {
-        let nextDelay = this.makeNextDelay(initialDelay);
-        super(service, args, retryCondition, nextDelay, initialDelay, maxRetries, maxDelay, syncTimeout, debug);
+        super(service, args, retryCondition, null, initialDelay, maxRetries, maxDelay, syncTimeout, debug);
+        this.setNextDelay(this.makeNextDelay(this.initialDelay));
     }
 
     makeNextDelay(initialDelay) {
@@ -29,6 +29,8 @@ class FibonacciBackoff extends Backoff {
                 yield fnCurr;
             }
         }(initialDelay);
+
+        nextDelayGenerator.next();
 
         return function() {
             return nextDelayGenerator.next().value;

@@ -1,6 +1,9 @@
 'use strict';
 
 var Backoff = require('./../index.js').Backoff;
+var LinearBackoff = require('./../index.js').LinearBackoff;
+var ExponentialBackoff = require('./../index.js').ExponentialBackoff;
+var FibonacciBackoff = require('./../index.js').FibonacciBackoff;
 
 var maxRetriesExceptionMsg = "Maximum number of retries is not set to a positive value.";
 

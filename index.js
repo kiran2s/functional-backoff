@@ -7,6 +7,7 @@ var FibonacciBackoff = require('./src/FibonacciBackoff');
 
 module.exports = {
     Backoff: Backoff,
+    LinearBackoff: LinearBackoff,
     ExponentialBackoff: ExponentialBackoff,
     FibonacciBackoff: FibonacciBackoff 
 };
