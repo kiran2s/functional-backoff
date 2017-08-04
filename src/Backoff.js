@@ -2,6 +2,7 @@
 
 var maxRetriesExceptionMsg = "Maximum number of retries is not set to a positive value.";
 var serviceNotSetExceptionMsg = "Service must be set before running backoff.";
+var maxRetryLimitMsg = "Maximum retry limit reached.";
 
 class Backoff {
     constructor(service, args, retryCondition, nextDelay, initialDelay, 
@@ -176,7 +177,12 @@ class Backoff {
                             if (eventuallyPerformAnotherRetry === true) {
                                 eventuallyPerformAnotherRetry = false;
                                 _this.log("TIMEOUT");
-                                prepareForRetry(retryNum, delayAmt, resolve, reject);
+                                if (retryNum >= maxRetries - 1) {
+                                    reject(maxRetryLimitMsg);
+                                }
+                                else {
+                                    prepareForRetry(retryNum, delayAmt, resolve, reject);
+                                }
                             }
                         },
                         syncTimeout

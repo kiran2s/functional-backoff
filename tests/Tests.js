@@ -6,6 +6,7 @@ var ExponentialBackoff = require('./../index.js').ExponentialBackoff;
 var FibonacciBackoff = require('./../index.js').FibonacciBackoff;
 
 var maxRetriesExceptionMsg = "Maximum number of retries is not set to a positive value.";
+var maxRetryLimitMsg = "Maximum retry limit reached.";
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -262,6 +263,39 @@ class Tests {
                 ).run(sync);
             },
             answer: { resolves: true, results: "resolved" }
+        };
+    }
+
+    testCase6() {
+        return {
+            name: "TEST 6",
+            test: function(sync) {
+                let initTime = Date.now();
+                let delayIndex = 0;
+                let delays = [50, 100, 200];
+                return new Backoff(
+                    function() {
+                        return new Promise(async function(resolve, reject) {
+                            console.log(Date.now() - initTime + ": Service requested");
+                            await sleep(1000);
+                            reject();
+                        });
+                    },
+                    [],
+                    null,
+                    function(delayAmt) {
+                        let delay = delays[delayIndex];
+                        delayIndex++;
+                        return delay;
+                    },
+                    0,
+                    5,
+                    Infinity,
+                    50,
+                    true
+                ).runSync();
+            },
+            answer: { resolves: false, results: maxRetryLimitMsg }
         };
     }
 }
