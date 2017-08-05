@@ -1,23 +1,13 @@
 'use strict';
 
-var maxRetriesExceptionMsg = "Maximum number of retries is not set to a positive value.";
-var serviceNotSetExceptionMsg = "Service must be set before running backoff.";
-var maxRetryLimitMsg = "Maximum retry limit reached.";
-
 class Backoff {
-    constructor(service, args, retryCondition, nextDelay, initialDelay, 
+    constructor(service, args, retryCondition, initialDelay, nextDelay, 
                 maxRetries, maxDelay, syncTimeout = null, debug = false) {
-        Backoff.Status = {
-            PENDING: "pending",
-            RUNNING: "running",
-            COMPLETED: "completed",
-            ABORTED: "aborted"
-        };
 
         this.setService(service, args)
             .setRetryCondition(retryCondition)
-            .setNextDelay(nextDelay)
             .setInitialDelay(initialDelay)
+            .setNextDelay(nextDelay)
             .setMaxRetries(maxRetries)
             .setMaxDelay(maxDelay)
             .setSyncTimeout(syncTimeout)
@@ -45,13 +35,10 @@ class Backoff {
     }
 
     setRetryCondition(retryCondition) {
-        this.retryCondition = retryCondition || (() => true);
-        return this;
-    }
-
-    setNextDelay(nextDelay) {
-        nextDelay = nextDelay || (delayAmt => delayAmt);
-        this.nextDelay = this.wrapNextDelay(nextDelay);
+        if (typeof retryCondition === "undefined" || retryCondition === null || retryCondition === true) {
+            retryCondition = (() => true);
+        }
+        this.retryCondition = retryCondition;
         return this;
     }
 
@@ -60,6 +47,12 @@ class Backoff {
         if (typeof initialDelay === "undefined" || initialDelay === null) {
             this.initialDelay = 100;
         }
+        return this;
+    }
+
+    setNextDelay(nextDelay) {
+        nextDelay = nextDelay || (delayAmt => delayAmt);
+        this.nextDelay = this.wrapNextDelay(nextDelay);
         return this;
     }
 
@@ -108,24 +101,25 @@ class Backoff {
         let service = this.service;
         let args = this.args;
         let retryCondition = this.retryCondition;
-        let nextDelay = this.nextDelay;
         let initialDelay = this.initialDelay;
+        let nextDelay = this.nextDelay;
         let maxRetries = this.maxRetries;
         let maxDelay = this.maxDelay;
         let syncTimeout = this.syncTimeout;
 
         if (service === null) {
             this.status = Backoff.Status.COMPLETED;
-            return new Promise((resolve, reject) => reject(serviceNotSetExceptionMsg));
+            return new Promise((resolve, reject) => reject(Backoff.Reason.serviceNotSet));
         }
 
         if (maxRetries <= 0) {
             this.status = Backoff.Status.COMPLETED;
-            return new Promise((resolve, reject) => reject(maxRetriesExceptionMsg));
+            return new Promise((resolve, reject) => reject(Backoff.Reason.retryLimitReached));
         }
 
         let serviceSuccessful = false;
         let _this = this;
+
         let retry = function(retryNum, delayAmt) {
             if (serviceSuccessful === true) {
                 return new Promise(() => {});
@@ -178,7 +172,7 @@ class Backoff {
                                 eventuallyPerformAnotherRetry = false;
                                 _this.log("TIMEOUT");
                                 if (retryNum >= maxRetries - 1) {
-                                    reject(maxRetryLimitMsg);
+                                    reject(Backoff.Reason.retryLimitReached);
                                 }
                                 else {
                                     prepareForRetry(retryNum, delayAmt, resolve, reject);
@@ -212,19 +206,19 @@ class Backoff {
         let service = this.service;
         let args = this.args;
         let retryCondition = this.retryCondition;
-        let nextDelay = this.nextDelay;
         let initialDelay = this.initialDelay;
+        let nextDelay = this.nextDelay;
         let maxRetries = this.maxRetries;
         let maxDelay = this.maxDelay;
 
         if (service === null) {
             this.status = Backoff.Status.COMPLETED;
-            return new Promise((resolve, reject) => reject(serviceNotSetExceptionMsg));
+            return new Promise((resolve, reject) => reject(Backoff.Reason.serviceNotSet));
         }
 
         if (maxRetries <= 0) {
             this.status = Backoff.Status.COMPLETED;
-            return new Promise((resolve, reject) => reject(maxRetriesExceptionMsg));
+            return new Promise((resolve, reject) => reject(Backoff.Reason.retryLimitReached));
         }
 
         let serviceSuccessful = false;
@@ -282,6 +276,7 @@ class Backoff {
         return retry(0, initialDelay);
     }
 
+    /* Helper methods */
     wrapService(service) {
         let _this = this;
         return function(args, retryNum, maxRetries, retryCondition) {
@@ -326,5 +321,17 @@ class Backoff {
         }
     }
 }
+
+Backoff.Status = {
+    PENDING:    "pending",
+    RUNNING:    "running",
+    COMPLETED:  "completed",
+    ABORTED:    "aborted"
+};
+
+Backoff.Reason = {
+    serviceNotSet:          "Error: Service must be set before running backoff.",
+    retryLimitReached:      "Maximum retry limit reached."
+};
 
 module.exports = Backoff;

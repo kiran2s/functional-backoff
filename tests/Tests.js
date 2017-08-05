@@ -5,9 +5,6 @@ var LinearBackoff = require('./../index.js').LinearBackoff;
 var ExponentialBackoff = require('./../index.js').ExponentialBackoff;
 var FibonacciBackoff = require('./../index.js').FibonacciBackoff;
 
-var maxRetriesExceptionMsg = "Maximum number of retries is not set to a positive value.";
-var maxRetryLimitMsg = "Maximum retry limit reached.";
-
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -80,15 +77,15 @@ class Tests {
                     },
                     null,
                     null,
-                    (delayAmt => 2 * delayAmt),
                     100,
+                    (delayAmt => 2 * delayAmt),
                     0,
                     200,
                     10000,
                     true
                 ).run(sync);
             },
-            answer: { resolves: false, results: maxRetriesExceptionMsg }
+            answer: { resolves: false, results: Backoff.Reason.retryLimitReached }
         };
     }
 
@@ -114,8 +111,8 @@ class Tests {
                     },
                     null,
                     null,
-                    (delayAmt => 100 + delayAmt),
                     100,
+                    (delayAmt => 100 + delayAmt),
                     10,
                     null,
                     10000,
@@ -148,8 +145,8 @@ class Tests {
                     },
                     null,
                     null,
-                    (delayAmt => 0.5 * delayAmt),
                     1000,
+                    (delayAmt => 0.5 * delayAmt),
                     6,
                     null,
                     10000,
@@ -182,8 +179,8 @@ class Tests {
                     },
                     null,
                     null,
-                    (delayAmt => 2 * delayAmt),
                     100,
+                    (delayAmt => 2 * delayAmt),
                     5,
                     null,
                     10000,
@@ -216,8 +213,8 @@ class Tests {
                     },
                     [42],
                     null,
-                    (delayAmt => delayAmt),
                     400,
+                    (delayAmt => delayAmt),
                     5,
                     null,
                     10000,
@@ -254,8 +251,8 @@ class Tests {
                     },
                     null,
                     null,
-                    (delayAmt => delayAmt),
                     400,
+                    (delayAmt => delayAmt),
                     10,
                     null,
                     1200,
@@ -283,19 +280,19 @@ class Tests {
                     },
                     [],
                     null,
+                    0,
                     function(delayAmt) {
                         let delay = delays[delayIndex];
                         delayIndex++;
                         return delay;
                     },
-                    0,
                     5,
                     Infinity,
                     50,
                     true
                 ).runSync();
             },
-            answer: { resolves: false, results: maxRetryLimitMsg }
+            answer: { resolves: false, results: Backoff.Reason.retryLimitReached }
         };
     }
 }
