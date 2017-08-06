@@ -98,50 +98,36 @@ class Backoff {
     runSync() {
         this.status = Backoff.Status.RUNNING;
 
-        let service = this.service;
-        let args = this.args;
-        let retryCondition = this.retryCondition;
-        let initialDelay = this.initialDelay;
-        let nextDelay = this.nextDelay;
-        let maxRetries = this.maxRetries;
-        let maxDelay = this.maxDelay;
-        let syncTimeout = this.syncTimeout;
-
-        if (service === null) {
-            this.status = Backoff.Status.COMPLETED;
-            return new Promise((resolve, reject) => reject(Backoff.Reason.serviceNotSet));
+        let reason = this.checkForEarlyErrors();
+        if (this.status === Backoff.Status.COMPLETED) {
+            return new Promise((resolve, reject) => reject(reason));
         }
 
-        if (maxRetries <= 0) {
-            this.status = Backoff.Status.COMPLETED;
-            return new Promise((resolve, reject) => reject(Backoff.Reason.retryLimitReached));
-        }
-
+        let local = this.getLocalCopies();
         let serviceSuccessful = false;
         let _this = this;
+
+        let retryAfterDelay = function(retryNum, delayAmt, resolve, reject) {
+            if (retryNum > 1) {
+                delayAmt = local.nextDelay(delayAmt, local.maxDelay);
+            }
+            setTimeout(
+                () => retry(retryNum, delayAmt)
+                    .then(val => resolve(val))
+                    .catch(reason => reject(reason)),
+                delayAmt
+            );
+        };
 
         let retry = function(retryNum, delayAmt) {
             if (serviceSuccessful === true) {
                 return new Promise(() => {});
             }
 
-            let prepareForRetry = function(retryNum, delayAmt, resolve, reject) {
-                retryNum++;
-                if (retryNum > 1) {
-                    delayAmt = nextDelay(delayAmt, maxDelay);
-                }
-                setTimeout(
-                    () => retry(retryNum, delayAmt)
-                        .then(val => resolve(val))
-                        .catch(reason => reject(reason)),
-                    delayAmt
-                );
-            };
-
             let eventuallyPerformAnotherRetry = true;
             let attemptService = function(retryNum, delayAmt) {
                 return new Promise(function(resolve, reject) {
-                    service(args, retryNum, maxRetries, retryCondition)
+                    local.service(local.args, retryNum, local.maxRetries, local.retryCondition)
                         .then(result => {
                             eventuallyPerformAnotherRetry = false;
                             if (result.success === true) {
@@ -158,11 +144,11 @@ class Backoff {
                             if (eventuallyPerformAnotherRetry === true) {
                                 eventuallyPerformAnotherRetry = false;
                                 _this.log("RETRY");
-                                prepareForRetry(retryNum, delayAmt, resolve, reject);
+                                retryAfterDelay(retryNum + 1, delayAmt, resolve, reject);
                             }
                         });
                 });
-            }
+            };
 
             let retryAfterTimeout = function(retryNum, delayAmt) {
                 return new Promise(function(resolve, reject) {
@@ -171,20 +157,20 @@ class Backoff {
                             if (eventuallyPerformAnotherRetry === true) {
                                 eventuallyPerformAnotherRetry = false;
                                 _this.log("TIMEOUT");
-                                if (retryNum >= maxRetries - 1) {
+                                if (retryNum >= local.maxRetries - 1) {
                                     reject(Backoff.Reason.retryLimitReached);
                                 }
                                 else {
-                                    prepareForRetry(retryNum, delayAmt, resolve, reject);
+                                    retryAfterDelay(retryNum + 1, delayAmt, resolve, reject);
                                 }
                             }
                         },
-                        syncTimeout
+                        local.syncTimeout
                     );
                 });
-            }
+            };
 
-            if (syncTimeout === null) {
+            if (local.syncTimeout === null) {
                 return attemptService(retryNum, delayAmt);
             }
             else {
@@ -197,36 +183,24 @@ class Backoff {
             }
         }
 
-        return retry(0, initialDelay);
+        return retry(0, local.initialDelay);
     }
 
     runAsync() {
         this.status = Backoff.Status.RUNNING;
 
-        let service = this.service;
-        let args = this.args;
-        let retryCondition = this.retryCondition;
-        let initialDelay = this.initialDelay;
-        let nextDelay = this.nextDelay;
-        let maxRetries = this.maxRetries;
-        let maxDelay = this.maxDelay;
-
-        if (service === null) {
-            this.status = Backoff.Status.COMPLETED;
-            return new Promise((resolve, reject) => reject(Backoff.Reason.serviceNotSet));
+        let reason = this.checkForEarlyErrors();
+        if (this.status === Backoff.Status.COMPLETED) {
+            return new Promise((resolve, reject) => reject(reason));
         }
 
-        if (maxRetries <= 0) {
-            this.status = Backoff.Status.COMPLETED;
-            return new Promise((resolve, reject) => reject(Backoff.Reason.retryLimitReached));
-        }
-
+        let local = this.getLocalCopies();
         let serviceSuccessful = false;
         let _this = this;
 
         let attemptService = function(retryNum) {
             return new Promise(function(resolve, reject) {
-                service(args, retryNum, maxRetries, retryCondition)
+                local.service(local.args, retryNum, local.maxRetries, local.retryCondition)
                     .then(result => {
                         if (result.success === true) {
                             serviceSuccessful = true;
@@ -246,9 +220,9 @@ class Backoff {
 
         let retryAfterDelay = function(retryNum, delayAmt) {
             return new Promise(function(resolve, reject) {
-                if (retryNum < maxRetries) {
+                if (retryNum < local.maxRetries) {
                     if (retryNum > 1) {
-                        delayAmt = nextDelay(delayAmt, maxDelay);
+                        delayAmt = local.nextDelay(delayAmt, local.maxDelay);
                     }
                     setTimeout(
                         () => retry(retryNum, delayAmt)
@@ -273,7 +247,7 @@ class Backoff {
             );
         }
 
-        return retry(0, initialDelay);
+        return retry(0, local.initialDelay);
     }
 
     /* Helper methods */
@@ -314,6 +288,48 @@ class Backoff {
             return nextDelayAmt;
         }
     }
+
+    checkForEarlyErrors() {
+        let reason = "";
+        if (this.service === null || this.maxRetries <= 0) {
+            this.status = Backoff.Status.COMPLETED;
+            if (this.service === null) {
+                reason = Backoff.Reason.serviceNotSet;
+            }
+            else {
+                reason = Backoff.Reason.retryLimitReached;
+            }
+        }
+
+        return reason;
+    }
+
+    getLocalCopies() {
+        return {
+            service: this.service,
+            args: this.deepCopy(this.args),
+            retryCondition: this.retryCondition,
+            initialDelay: this.initialDelay,
+            nextDelay: this.nextDelay,
+            maxRetries: this.maxRetries,
+            maxDelay: this.maxDelay,
+            syncTimeout: this.syncTimeout
+        };
+    }
+
+    deepCopy(obj) {
+	    if (obj === undefined || obj === null || typeof obj !== "object") {
+            return obj;
+        }
+
+	    let copy = obj.constructor();
+	    for (let attr in obj) {
+	        if (obj.hasOwnProperty(attr)) {
+                copy[attr] = this.deepCopy(obj[attr]);
+            }
+	    }
+	    return copy;
+	}
 
     log(msg) {
         if (this.debug) {
