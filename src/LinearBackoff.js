@@ -3,8 +3,8 @@
 var Backoff = require('./Backoff');
 
 class LinearBackoff extends Backoff {
-    constructor(service, args, retryCondition, offset, initialDelay, maxRetries, maxDelay, mod = null, syncTimeout = null, debug = false) {
-        super(service, args, retryCondition, null, initialDelay, maxRetries, maxDelay, syncTimeout, debug);
+    constructor(service, args, retryCondition, initialDelay, offset, maxRetries, maxDelay, mod = null, syncTimeout = null, debug = false) {
+        super(service, args, retryCondition, initialDelay, null, maxRetries, maxDelay, syncTimeout, debug);
         this.setOffset(offset)
             .setMod(mod)
             .setNextDelay(this.makeNextDelay(this.initialDelay, this.offset, this.mod));

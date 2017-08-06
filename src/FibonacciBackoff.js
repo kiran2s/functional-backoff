@@ -4,7 +4,7 @@ var Backoff = require('./Backoff');
 
 class FibonacciBackoff extends Backoff {
     constructor(service, args, retryCondition, initialDelay, maxRetries, maxDelay, syncTimeout = null, debug = false) {
-        super(service, args, retryCondition, null, initialDelay, maxRetries, maxDelay, syncTimeout, debug);
+        super(service, args, retryCondition, initialDelay, null, maxRetries, maxDelay, syncTimeout, debug);
         this.setNextDelay(this.makeNextDelay(this.initialDelay));
     }
 
