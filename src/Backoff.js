@@ -234,9 +234,12 @@ class Backoff {
                         delayAmt = local.maxDelay;
                     }
                     setTimeout(
-                        () => retry(retryNum, delayAmt)
+                        () => {
+                            _this.log("Backoff delay amount: " + delayAmt);
+                            retry(retryNum, delayAmt)
                             .then(val => resolve(val))
-                            .catch(reason => reject(reason)),
+                            .catch(reason => reject(reason));
+                        },
                         delayAmt
                     );
                 }
