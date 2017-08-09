@@ -7,7 +7,7 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "mocha ./tests/test.js"
   },
   "repository": {
     "type": "git",
@@ -28,5 +28,10 @@
   "bugs": {
     "url": "https://github.com/kiran2s/functional-backoff/issues"
   },
-  "homepage": "https://github.com/kiran2s/functional-backoff#readme"
+  "homepage": "https://github.com/kiran2s/functional-backoff#readme",
+  "dependencies": {
+    "chai": "^4.1.1",
+    "chai-as-promised": "^7.1.1",
+    "mocha": "^3.5.0"
+  }
 }
