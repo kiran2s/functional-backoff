@@ -51,8 +51,7 @@ class Backoff {
     }
 
     setNextDelay(nextDelay) {
-        nextDelay = nextDelay || (delayAmt => delayAmt);
-        this.nextDelay = this.wrapNextDelay(nextDelay);
+        this.nextDelay = nextDelay || (delayAmt => delayAmt);
         return this;
     }
 
@@ -74,7 +73,7 @@ class Backoff {
 
     setSyncTimeout(syncTimeout) {
         this.syncTimeout = syncTimeout;
-        if (typeof syncTimeout === "undefined") {
+        if (typeof syncTimeout === "undefined" || syncTimeout === Infinity) {
             this.syncTimeout = null;
         }
         return this;
@@ -111,10 +110,16 @@ class Backoff {
             if (retryNum > 1) {
                 delayAmt = local.nextDelay(delayAmt, local.maxDelay);
             }
+            if (delayAmt > local.maxDelay) {
+                delayAmt = local.maxDelay;
+            }
             setTimeout(
-                () => retry(retryNum, delayAmt)
+                () => {
+                    _this.log("Backoff delay amount: " + delayAmt);
+                    retry(retryNum, delayAmt)
                     .then(val => resolve(val))
-                    .catch(reason => reject(reason)),
+                    .catch(reason => reject(reason));
+                },
                 delayAmt
             );
         };
@@ -154,6 +159,7 @@ class Backoff {
                 return new Promise(function(resolve, reject) {
                     setTimeout(
                         () => {
+                            _this.log("Timeout amount: " + local.syncTimeout);
                             if (eventuallyPerformAnotherRetry === true) {
                                 eventuallyPerformAnotherRetry = false;
                                 _this.log("TIMEOUT");
@@ -224,6 +230,9 @@ class Backoff {
                     if (retryNum > 1) {
                         delayAmt = local.nextDelay(delayAmt, local.maxDelay);
                     }
+                    if (delayAmt > local.maxDelay) {
+                        delayAmt = local.maxDelay;
+                    }
                     setTimeout(
                         () => retry(retryNum, delayAmt)
                             .then(val => resolve(val))
@@ -277,16 +286,6 @@ class Backoff {
                     });
             });
         };
-    }
-
-    wrapNextDelay(nextDelay) {
-        return function(delayAmt, maxDelay) {
-            let nextDelayAmt = nextDelay(delayAmt);
-            if (nextDelayAmt > maxDelay) {
-                nextDelayAmt = maxDelay;
-            }
-            return nextDelayAmt;
-        }
     }
 
     checkForEarlyErrors() {
