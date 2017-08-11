@@ -11,7 +11,7 @@ var LinearBackoff = require('./../index.js').LinearBackoff;
 var ExponentialBackoff = require('./../index.js').ExponentialBackoff;
 var FibonacciBackoff = require('./../index.js').FibonacciBackoff;
 
-let debug = true;
+let debug = false;
 
 function makeService(successItr = 5, sleepAmt = 100, resolveVal = "resolved", rejectVal = "rejected", callback = null) {
     let initTime = Date.now();
@@ -56,10 +56,11 @@ function log(msg, initTime) {
 
 var tests = [
     function(sync) {
-        let explanation = sync ? 'should resolve in ~850ms when success achieved before retry limit reached' : '';
+        let expectedTime = sync ? 850 : 350;
+        let explanation = 'should resolve in ~' + expectedTime + 'ms when success achieved before retry limit reached';
         it(explanation, function() {
             this.timeout(2000);
-            this.slow(950);
+            this.slow(expectedTime + 100);
             let backoff = new Backoff(makeService())
                 .setInitialDelay(50)
                 .setDebugMode(debug);
@@ -67,7 +68,7 @@ var tests = [
         });
     },
     function(sync) {
-        let explanation = sync ? 'should reject quickly when service not provided' : '';
+        let explanation = 'should reject quickly when service not provided';
         it(explanation, function() {
             this.timeout(1000);
             this.slow(100);
@@ -76,7 +77,7 @@ var tests = [
         });
     },
     function(sync) {
-        let explanation = sync ? 'should resolve quickly when service takes a short amount of time' : '';
+        let explanation = 'should resolve quickly when service is short and eventually succeeds';
         it(explanation, function() {
             this.timeout(1000);
             this.slow(100);
@@ -87,7 +88,7 @@ var tests = [
         });
     },
     function(sync) {
-        let explanation = sync ? 'should reject quickly when service takes a short amount of time' : '';
+        let explanation = 'should reject quickly when service is short and never succeeds';
         it(explanation, function() {
             this.timeout(1000);
             this.slow(100);
@@ -98,10 +99,11 @@ var tests = [
         });
     },
     function(sync) {
-        let explanation = sync ? 'should resolve in ~850ms when a service argument is provided' : '';
+        let expectedTime = sync ? 850 : 350;
+        let explanation = 'should resolve in ~' + expectedTime + 'ms when a service argument is provided';
         it(explanation, function() {
             this.timeout(2000);
-            this.slow(950);
+            this.slow(expectedTime + 100);
             let backoff = new Backoff(makeService(5, 100, "resolved", "rejected", function(arg) {
                 return arg;
             })) .setServiceArgs(["42"])
@@ -111,10 +113,11 @@ var tests = [
         });
     },
     function(sync) {
-        let explanation = sync ? 'should resolve in ~850ms when multiple service arguments are provided' : ''; 
+        let expectedTime = sync ? 850 : 350;
+        let explanation = 'should resolve in ~' + expectedTime + 'ms when multiple service arguments are provided';
         it(explanation, function() {
             this.timeout(2000);
-            this.slow(950);
+            this.slow(expectedTime + 100);
             let backoff = new Backoff(makeService(5, 100, "resolved", "rejected", function() {
                 let sum = 0;
                 Array.from(arguments).map(function(val) { sum += val; });
@@ -126,10 +129,11 @@ var tests = [
         });
     },
     function(sync) {
-        let explanation = sync ? 'should resolve in ~850ms when different types of service arguments are provided' : '';
+        let expectedTime = sync ? 850 : 350;
+        let explanation = 'should resolve in ~' + expectedTime + 'ms when different types of service arguments are provided';
         it(explanation, function() {
             this.timeout(2000);
-            this.slow(950);
+            this.slow(expectedTime + 100);
             let backoff = new Backoff(makeService(5, 100, "resolved", "rejected", function() {
                 let args = Array.from(arguments);
                 let sum = 0;
@@ -162,7 +166,7 @@ var tests = [
         });
     },
     function(sync) {
-        let explanation = sync ? 'should reject in ~100ms and never retry if retry condition always returns false' : '';
+        let explanation = 'should reject in ~100ms and never retry if retry condition always returns false';
         it(explanation, function() {
             this.timeout(1000);
             this.slow(120);
@@ -175,10 +179,11 @@ var tests = [
         });
     },
     function(sync) {
-        let explanation = sync ? 'should reject in ~550ms and stop retrying when retry condition returns false' : '';
+        let expectedTime = sync ? 550 : 250;
+        let explanation = 'should reject in ~' + expectedTime + 'ms and stop retrying when retry condition returns false';
         it(explanation, function() {
             this.timeout(1000);
-            this.slow(600);
+            this.slow(expectedTime + 100);
             let n = 0;
             let backoff = new Backoff(makeService())
                 .setRetryCondition(function(reason) {
@@ -193,10 +198,11 @@ var tests = [
         });
     },
     function(sync) {
-        let explanation = sync ? 'should resolve in ~1100ms with backoff delay amount growing linearly' : '';
+        let expectedTime = sync ? 1100 : 700;
+        let explanation = 'should resolve in ~' + expectedTime + 'ms with backoff delay amount growing linearly';
         it(explanation, function() {
             this.timeout(2000);
-            this.slow(1200);
+            this.slow(expectedTime + 100);
             let backoff = new Backoff(makeService(4))
                 .setInitialDelay(0)
                 .setNextDelay(delayAmt => delayAmt + 100)
@@ -205,10 +211,11 @@ var tests = [
         });
     },
     function(sync) {
-        let explanation = sync ? 'should resolve in ~1330ms with backoff delay amount growing exponentially' : '';
+        let expectedTime = sync ? 1330 : 730;
+        let explanation = 'should resolve in ~' + expectedTime + 'ms with backoff delay amount growing exponentially';
         it(explanation, function() {
             this.timeout(2000);
-            this.slow(1420);
+            this.slow(expectedTime + 100);
             let backoff = new Backoff(makeService(6))
                 .setInitialDelay(10)
                 .setNextDelay(delayAmt => delayAmt * 2)
@@ -217,10 +224,11 @@ var tests = [
         });
     },
     function(sync) {
-        let explanation = sync ? 'should resolve in ~1330ms with backoff delay amount decreasing exponentially' : '';
+        let expectedTime = sync ? 1330 : 730;
+        let explanation = 'should resolve in ~' + expectedTime + 'ms with backoff delay amount decreasing exponentially';
         it(explanation, function() {
             this.timeout(2000);
-            this.slow(1420);
+            this.slow(expectedTime + 100);
             let backoff = new Backoff(makeService(6))
                 .setInitialDelay(320)
                 .setNextDelay(delayAmt => delayAmt / 2)
@@ -229,10 +237,11 @@ var tests = [
         });
     },
     function(sync) {
-        let explanation = sync ? 'should reject in ~850ms with specified backoff delay amounts' : '';
+        let expectedTime = sync ? 850 : 450;
+        let explanation = 'should reject in ~' + expectedTime + 'ms with specified backoff delay amounts';
         it(explanation, function() {
             this.timeout(2000);
-            this.slow(920);
+            this.slow(expectedTime + 100);
             let i = 0;
             let delays = [200, 50, 100];
             let backoff = new Backoff(makeService(10))
@@ -248,7 +257,7 @@ var tests = [
         });
     },
     function(sync) {
-        let explanation = sync ? 'should reject quickly when max retry limit set to 0' : '';
+        let explanation = 'should reject quickly when max retry limit set to 0';
         it(explanation, function() {
             this.timeout(1000);
             this.slow(100);
@@ -259,7 +268,7 @@ var tests = [
         });
     },
     function(sync) {
-        let explanation = sync ? 'should reject in ~100ms when max retry limit set to 1' : '';
+        let explanation = 'should reject in ~100ms when max retry limit set to 1';
         it(explanation, function() {
             this.timeout(1000);
             this.slow(150);
@@ -270,7 +279,7 @@ var tests = [
         });
     },
     function(sync) {
-        let explanation = sync ? 'should resolve in ~100ms when success occurs on first attempt and max retry limit set to 1' : '';
+        let explanation = 'should resolve in ~100ms when success occurs on first attempt and max retry limit set to 1';
         it(explanation, function() {
             this.timeout(1000);
             this.slow(150);
@@ -281,10 +290,11 @@ var tests = [
         });
     },
     function(sync) {
-        let explanation = sync ? 'should resolve in ~1100ms when success occurs on last allowed retry' : '';
+        let expectedTime = sync ? 1100 : 600;
+        let explanation = 'should resolve in ~' + expectedTime + 'ms when success occurs on last allowed retry';
         it(explanation, function() {
             this.timeout(2000);
-            this.slow(1200);
+            this.slow(expectedTime + 100);
             let backoff = new Backoff(makeService())
                 .setMaxRetries(6)
                 .setDebugMode(debug);
@@ -292,10 +302,11 @@ var tests = [
         });
     },
     function(sync) {
-        let explanation = sync ? 'should reject in ~900ms when success were to occur after last allowed retry' : '';
+        let expectedTime = sync ? 900 : 500;
+        let explanation = 'should reject in ~' + expectedTime + 'ms when success were to occur right after last allowed retry';
         it(explanation, function() {
             this.timeout(2000);
-            this.slow(1000);
+            this.slow(expectedTime + 100);
             let backoff = new Backoff(makeService())
                 .setMaxRetries(5)
                 .setDebugMode(debug);
@@ -303,10 +314,11 @@ var tests = [
         });
     },
     function(sync) {
-        let explanation = sync ? 'should resolve in ~600ms when max delay set to 0' : '';
+        let expectedTime = sync ? 600 : 100;
+        let explanation = 'should resolve in ~' + expectedTime + 'ms when max delay set to 0';
         it(explanation, function() {
             this.timeout(2000);
-            this.slow(700);
+            this.slow(expectedTime + 100);
             let backoff = new Backoff(makeService())
                 .setMaxDelay(0)
                 .setDebugMode(debug);
@@ -314,10 +326,11 @@ var tests = [
         });
     },
     function(sync) {
-        let explanation = sync ? 'should resolve in ~600ms when max delay set to a negative number' : '';
+        let expectedTime = sync ? 600 : 100;
+        let explanation = 'should resolve in ~' + expectedTime + 'ms when max delay set to a negative number';
         it(explanation, function() {
             this.timeout(2000);
-            this.slow(700);
+            this.slow(expectedTime + 100);
             let backoff = new Backoff(makeService())
                 .setMaxDelay(-137)
                 .setDebugMode(debug);
@@ -325,10 +338,11 @@ var tests = [
         });
     },
     function(sync) {
-        let explanation = sync ? 'should resolve in ~1050ms when max delay prevents endless exponential growth' : '';
+        let expectedTime = sync ? 1050 : 450;
+        let explanation = 'should resolve in ~' + expectedTime + 'ms when max delay prevents endless exponential growth';
         it(explanation, function() {
             this.timeout(2000);
-            this.slow(1150);
+            this.slow(expectedTime + 100);
             let backoff = new Backoff(makeService(6))
                 .setInitialDelay(10)
                 .setNextDelay(delayAmt => delayAmt * 2)
@@ -338,18 +352,29 @@ var tests = [
         });
     },
     function(sync) {
-        let explanation = sync ? 'should reject in ~900ms when service timeout set to 0 and service takes long time' : '';
+        let expectedTime = sync ? 900 : 1500;
+        let explanation = sync ? 
+            'should reject in ~' + expectedTime + 'ms when service timeout set to 0 and service takes long time' : 
+            'should resolve in ~' + expectedTime + 'ms when service takes long time';
         it(explanation, function() {
             this.timeout(2000);
-            this.slow(1000);
+            this.slow(expectedTime + 100);
             let backoff = new Backoff(makeService(5, 1000))
                 .setSyncTimeout(0)
                 .setDebugMode(debug);
-            return backoff.run(sync).should.be.rejectedWith(Backoff.Reason.retryLimitReached);
+            if (sync) {
+                return backoff.run(sync).should.be.rejectedWith(Backoff.Reason.retryLimitReached);
+            }
+            else {
+                return backoff.run(sync).should.become("5: resolved");
+            }
         });
     },
     function(sync) {
-        let explanation = sync ? 'should resolve in ~1100ms and never timeout when service timeout set very high' : '';
+        if (sync === false) {
+            return (() => {});
+        }
+        let explanation = 'should resolve in ~1100ms and never timeout when service timeout set very high';
         it(explanation, function() {
             this.timeout(2000);
             this.slow(1200);
@@ -360,7 +385,10 @@ var tests = [
         });
     },
     function(sync) {
-        let explanation = sync ? 'should resolve in ~1300ms when service delta time eventually decreases below timeout' : '';
+        if (sync === false) {
+            return (() => {});
+        }
+        let explanation = 'should resolve in ~1300ms when service delta time eventually decreases below timeout';
         it(explanation, function() {
             this.timeout(2000);
             this.slow(1400);
@@ -383,6 +411,9 @@ var tests = [
         });
     },
     function(sync) {
+        if (sync === false) {
+            return (() => {});
+        }
         let explanation = sync ? 'should reject in ~1200ms when service delta time eventually increases above timeout' : '';
         it(explanation, function() {
             this.timeout(2000);
@@ -407,10 +438,11 @@ var tests = [
         });
     },
     function(sync) {
-        let explanation = sync ? 'should resolve in ~1100ms when service resolves to a non-string value' : '';
+        let expectedTime = sync ? 1100 : 600;
+        let explanation = 'should resolve in ~' + expectedTime + 'ms when service resolves to a non-string value';
         it(explanation, function() {
             this.timeout(2000);
-            this.slow(1200);
+            this.slow(expectedTime + 100);
 
             let initTime = Date.now();
             let n = 0;
@@ -447,5 +479,149 @@ describe('Backoff', function() {
         tests.forEach(function(test) {
             test(false);
         });
-    });    
+    });
+});
+
+describe('LinearBackoff', function() {
+    describe('#runSync()', function() {
+        it('should resolve in ~1300ms when success achieved before retry limit reached', function() {
+            this.timeout(2000);
+            this.slow(1400);
+            let backoff = new LinearBackoff(makeService())
+                .setOffset(50)
+                .setMod(3)
+                .setDebugMode(debug);
+            return backoff.runSync().should.become("5: resolved")
+        });
+
+        it('should reject in ~1100ms when service never succeeds', function() {
+            this.timeout(2000);
+            this.slow(1200);
+            let backoff = new LinearBackoff(makeService(20, 50))
+                .setInitialDelay(0)
+                .setOffset(50)
+                .setMod(4)
+                .setDebugMode(debug);
+            return backoff.runSync().should.be.rejectedWith("9: rejected")
+        });
+    });
+
+    describe('#runAsync()', function() {
+        it('should resolve in ~800ms when success achieved before retry limit reached', function() {
+            this.timeout(2000);
+            this.slow(900);
+            let backoff = new LinearBackoff(makeService())
+                .setOffset(50)
+                .setMod(3)
+                .setDebugMode(debug);
+            return backoff.runAsync().should.become("5: resolved")
+        });
+
+        it('should reject in ~650ms when service never succeeds', function() {
+            this.timeout(2000);
+            this.slow(750);
+            let backoff = new LinearBackoff(makeService(20, 50))
+                .setInitialDelay(0)
+                .setOffset(50)
+                .setMod(4)
+                .setDebugMode(debug);
+            return backoff.runAsync().should.be.rejectedWith("9: rejected")
+        });
+    });
+});
+
+describe('ExponentialBackoff', function() {
+    describe('#runSync()', function() {
+        it('should resolve in ~850ms when success achieved before retry limit reached', function() {
+            this.timeout(2000);
+            this.slow(950);
+            let backoff = new ExponentialBackoff(makeService())
+                .setInitialDelay(25)
+                .setFactor(2)
+                .setMod(3)
+                .setDebugMode(debug);
+            return backoff.runSync().should.become("5: resolved")
+        });
+
+        it('should reject in ~950ms when service never succeeds', function() {
+            this.timeout(2000);
+            this.slow(1050);
+            let backoff = new ExponentialBackoff(makeService(20, 50))
+                .setInitialDelay(25)
+                .setFactor(2)
+                .setMod(4)
+                .setMaxRetries(8)
+                .setDebugMode(debug);
+            return backoff.runSync().should.be.rejectedWith("7: rejected")
+        });
+    });
+
+    describe('#runAsync()', function() {
+        it('should resolve in ~350ms when success achieved before retry limit reached', function() {
+            this.timeout(2000);
+            this.slow(450);
+            let backoff = new ExponentialBackoff(makeService())
+                .setInitialDelay(25)
+                .setFactor(2)
+                .setMod(3)
+                .setDebugMode(debug);
+            return backoff.runAsync().should.become("5: resolved")
+        });
+
+        it('should reject in ~575ms when service never succeeds', function() {
+            this.timeout(2000);
+            this.slow(675);
+            let backoff = new ExponentialBackoff(makeService(20, 50))
+                .setInitialDelay(25)
+                .setFactor(2)
+                .setMod(4)
+                .setMaxRetries(8)
+                .setDebugMode(debug);
+            return backoff.runAsync().should.be.rejectedWith("7: rejected")
+        });
+    });
+});
+
+describe('FibonacciBackoff', function() {
+    describe('#runSync()', function() {
+        it('should resolve in ~720ms when success achieved before retry limit reached', function() {
+            this.timeout(2000);
+            this.slow(820);
+            let backoff = new FibonacciBackoff(makeService())
+                .setInitialDelay(10)
+                .setDebugMode(debug);
+            return backoff.runSync().should.become("5: resolved")
+        });
+
+        it('should reject in ~730ms when service never succeeds', function() {
+            this.timeout(2000);
+            this.slow(830);
+            let backoff = new FibonacciBackoff(makeService(20, 50))
+                .setInitialDelay(10)
+                .setMaxRetries(8)
+                .setDebugMode(debug);
+            return backoff.runSync().should.be.rejectedWith("7: rejected")
+        });
+    });
+
+    describe('#runAsync()', function() {
+        it('should resolve in ~220ms when success achieved before retry limit reached', function() {
+            this.timeout(2000);
+            this.slow(300);
+            let backoff = new FibonacciBackoff(makeService())
+                .setInitialDelay(10)
+                .setDebugMode(debug);
+            return backoff.runAsync().should.become("5: resolved")
+        });
+
+        it('should reject in ~380ms when service never succeeds', function() {
+            this.timeout(2000);
+            this.slow(480);
+            let backoff = new FibonacciBackoff(makeService(20, 50))
+                .setInitialDelay(10)
+                .setMaxRetries(8)
+                .setDebugMode(debug);
+            return backoff.runAsync().should.be.rejectedWith("7: rejected")
+        });
+    });
 });

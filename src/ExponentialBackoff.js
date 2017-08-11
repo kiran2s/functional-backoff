@@ -7,7 +7,13 @@ class ExponentialBackoff extends Backoff {
         super(service, args, retryCondition, initialDelay, null, maxRetries, maxDelay, syncTimeout, debug);
         this.setFactor(factor)
             .setMod(mod)
-            .setNextDelay(this.makeNextDelay(this.initialDelay, this.factor, this.mod));
+            .setNextDelay(this.makeNextDelay());
+    }
+
+    setInitialDelay(initialDelay) {
+        super.setInitialDelay(initialDelay);
+        this.setNextDelay(this.makeNextDelay());
+        return this;
     }
 
     setFactor(factor) {
@@ -15,6 +21,7 @@ class ExponentialBackoff extends Backoff {
         if (typeof factor === "undefined" || factor === null) {
             this.factor = 2;
         }
+        this.setNextDelay(this.makeNextDelay());
         return this;
     }
 
@@ -23,10 +30,11 @@ class ExponentialBackoff extends Backoff {
         if (typeof mod === "undefined") {
             this.mod = null;
         }
+        this.setNextDelay(this.makeNextDelay());
         return this;
     }
 
-    makeNextDelay(initialDelay, factor, mod) {
+    makeNextDelay() {
         let nextDelayGenerator = function*(initialDelay, factor) {
             let delayAmt = initialDelay * factor;
             for (;;) {
@@ -38,14 +46,15 @@ class ExponentialBackoff extends Backoff {
                     delayAmt *= factor;
                 }
             }
-        }(initialDelay, factor);
+        }(this.initialDelay, this.factor);
 
-        if (mod === null) {
+        if (typeof this.mod === "undefined" || this.mod === null) {
             return function() {
                 return nextDelayGenerator.next().value;
             }
         }
         else {
+            let mod = this.mod;
             let i = 1;
             return function() {
                 if (i === mod) {

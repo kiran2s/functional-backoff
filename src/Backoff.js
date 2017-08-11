@@ -13,7 +13,7 @@ class Backoff {
             .setSyncTimeout(syncTimeout)
             .setDebugMode(debug);
 
-        this.status = Backoff.Status.PENDING;
+        this.status = Backoff.Status.IDLE;
 
         this.initTime = Date.now();
     }
@@ -30,7 +30,7 @@ class Backoff {
     }
 
     setServiceArgs(args) {
-        this.args = args;
+        this.args = args || [];
         return this;
     }
 
@@ -43,10 +43,10 @@ class Backoff {
     }
 
     setInitialDelay(initialDelay) {
-        this.initialDelay = initialDelay;
         if (typeof initialDelay === "undefined" || initialDelay === null) {
-            this.initialDelay = 100;
+            initialDelay = 100;
         }
+        this.initialDelay = initialDelay;
         return this;
     }
 
@@ -56,26 +56,26 @@ class Backoff {
     }
 
     setMaxRetries(maxRetries) {
-        this.maxRetries = maxRetries;
         if (typeof maxRetries === "undefined" || maxRetries === null) {
-            this.maxRetries = 10;
+            maxRetries = 10;
         }
+        this.maxRetries = maxRetries;
         return this;
     }
 
     setMaxDelay(maxDelay) {
-        this.maxDelay = maxDelay;
         if (typeof maxDelay === "undefined" || maxDelay === null) {
-            this.maxDelay = Infinity;
+            maxDelay = Infinity;
         }
+        this.maxDelay = maxDelay;
         return this;
     }
 
     setSyncTimeout(syncTimeout) {
-        this.syncTimeout = syncTimeout;
         if (typeof syncTimeout === "undefined" || syncTimeout === Infinity) {
-            this.syncTimeout = null;
+            syncTimeout = null;
         }
+        this.syncTimeout = syncTimeout;
         return this;
     }
 
@@ -98,7 +98,7 @@ class Backoff {
         this.status = Backoff.Status.RUNNING;
 
         let reason = this.checkForEarlyErrors();
-        if (this.status === Backoff.Status.COMPLETED) {
+        if (this.status === Backoff.Status.IDLE) {
             return new Promise((resolve, reject) => reject(reason));
         }
 
@@ -108,7 +108,7 @@ class Backoff {
 
         let retryAfterDelay = function(retryNum, delayAmt, resolve, reject) {
             if (retryNum > 1) {
-                delayAmt = local.nextDelay(delayAmt, local.maxDelay);
+                delayAmt = local.nextDelay(delayAmt);
             }
             if (delayAmt > local.maxDelay) {
                 delayAmt = local.maxDelay;
@@ -196,7 +196,7 @@ class Backoff {
         this.status = Backoff.Status.RUNNING;
 
         let reason = this.checkForEarlyErrors();
-        if (this.status === Backoff.Status.COMPLETED) {
+        if (this.status === Backoff.Status.IDLE) {
             return new Promise((resolve, reject) => reject(reason));
         }
 
@@ -228,7 +228,7 @@ class Backoff {
             return new Promise(function(resolve, reject) {
                 if (retryNum < local.maxRetries) {
                     if (retryNum > 1) {
-                        delayAmt = local.nextDelay(delayAmt, local.maxDelay);
+                        delayAmt = local.nextDelay(delayAmt);
                     }
                     if (delayAmt > local.maxDelay) {
                         delayAmt = local.maxDelay;
@@ -269,20 +269,20 @@ class Backoff {
             return new Promise(function(resolve, reject) {
                 service(...args)
                     .then(val => {
-                        _this.status = Backoff.Status.COMPLETED;
+                        _this.status = Backoff.Status.IDLE;
                         resolve({ success: true, value: val });
                     })
                     .catch(reason => {
-                        _this.status = Backoff.Status.COMPLETED;
                         if (retryNum >= maxRetries - 1) {
+                            _this.status = Backoff.Status.IDLE;
                             resolve({ success: false, value: reason });
                         }
                         else {
                             if (retryCondition(reason)) {
-                                _this.status = Backoff.Status.RUNNING;
                                 reject(reason);
                             }
                             else {
+                                _this.status = Backoff.Status.IDLE;
                                 resolve({ success: false, value: reason });
                             }
                         }
@@ -294,7 +294,7 @@ class Backoff {
     checkForEarlyErrors() {
         let reason = "";
         if (this.service === null || this.maxRetries <= 0) {
-            this.status = Backoff.Status.COMPLETED;
+            this.status = Backoff.Status.IDLE;
             if (this.service === null) {
                 reason = Backoff.Reason.serviceNotSet;
             }
@@ -341,10 +341,8 @@ class Backoff {
 }
 
 Backoff.Status = {
-    PENDING:    "pending",
-    RUNNING:    "running",
-    COMPLETED:  "completed",
-    ABORTED:    "aborted"
+    IDLE:       "idle",
+    RUNNING:    "running"
 };
 
 Backoff.Reason = {

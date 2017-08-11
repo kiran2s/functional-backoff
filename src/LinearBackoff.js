@@ -7,7 +7,13 @@ class LinearBackoff extends Backoff {
         super(service, args, retryCondition, initialDelay, null, maxRetries, maxDelay, syncTimeout, debug);
         this.setOffset(offset)
             .setMod(mod)
-            .setNextDelay(this.makeNextDelay(this.initialDelay, this.offset, this.mod));
+            .setNextDelay(this.makeNextDelay());
+    }
+
+    setInitialDelay(initialDelay) {
+        super.setInitialDelay(initialDelay);
+        this.setNextDelay(this.makeNextDelay());
+        return this;
     }
 
     setOffset(offset) {
@@ -15,6 +21,7 @@ class LinearBackoff extends Backoff {
         if (typeof offset === "undefined" || offset === null) {
             this.offset = 100;
         }
+        this.setNextDelay(this.makeNextDelay());
         return this;
     }
 
@@ -23,10 +30,11 @@ class LinearBackoff extends Backoff {
         if (typeof mod === "undefined") {
             this.mod = null;
         }
+        this.setNextDelay(this.makeNextDelay());
         return this;
     }
 
-    makeNextDelay(initialDelay, offset, mod) {
+    makeNextDelay() {
         let nextDelayGenerator = function*(initialDelay, offset) {
             let delayAmt = initialDelay + offset;
             for (;;) {
@@ -38,14 +46,15 @@ class LinearBackoff extends Backoff {
                     delayAmt += offset;
                 }
             }
-        }(initialDelay, offset);
+        }(this.initialDelay, this.offset);
 
-        if (mod === null) {
+        if (typeof this.mod === "undefined" || this.mod === null) {
             return function() {
                 return nextDelayGenerator.next().value;
             }
         }
         else {
+            let mod = this.mod;
             let i = 1;
             return function() {
                 if (i === mod) {

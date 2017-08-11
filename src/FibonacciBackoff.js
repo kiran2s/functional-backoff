@@ -5,10 +5,16 @@ var Backoff = require('./Backoff');
 class FibonacciBackoff extends Backoff {
     constructor(service, args, retryCondition, initialDelay, maxRetries, maxDelay, syncTimeout = null, debug = false) {
         super(service, args, retryCondition, initialDelay, null, maxRetries, maxDelay, syncTimeout, debug);
-        this.setNextDelay(this.makeNextDelay(this.initialDelay));
+        this.setNextDelay(this.makeNextDelay());
     }
 
-    makeNextDelay(initialDelay) {
+    setInitialDelay(initialDelay) {
+        super.setInitialDelay(initialDelay);
+        this.setNextDelay(this.makeNextDelay());
+        return this;
+    }
+
+    makeNextDelay() {
         let nextDelayGenerator = function*(initialDelay) {
             let fn1, fn2;
             if (Array.isArray(initialDelay)) {
@@ -28,7 +34,7 @@ class FibonacciBackoff extends Backoff {
                 fn2 = fnCurr + fn2;
                 yield fnCurr;
             }
-        }(initialDelay);
+        }(this.initialDelay);
 
         nextDelayGenerator.next();
 
