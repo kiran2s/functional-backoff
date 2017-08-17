@@ -354,8 +354,8 @@ var tests = [
     function(sync) {
         let expectedTime = sync ? 900 : 1500;
         let explanation = sync ? 
-            'should reject in ~' + expectedTime + 'ms when service timeout set to 0 and service takes long time' : 
-            'should resolve in ~' + expectedTime + 'ms when service takes long time';
+            'should reject in ~' + expectedTime + 'ms when service timeout set to 0 and service takes long time' :
+            'should reject quickly when service timeout set to 0 and service takes long time';
         it(explanation, function() {
             this.timeout(2000);
             this.slow(expectedTime + 100);
@@ -366,7 +366,7 @@ var tests = [
                 return backoff.run(sync).should.be.rejectedWith(Backoff.Reason.retryLimitReached);
             }
             else {
-                return backoff.run(sync).should.become("5: resolved");
+                return backoff.run(sync).should.be.rejectedWith(Backoff.Reason.timeout);
             }
         });
     },
@@ -464,6 +464,38 @@ var tests = [
             let backoff = new Backoff(service)
                 .setDebugMode(debug);
             return backoff.run(sync).should.become(5);
+        });
+    },
+    function(sync) {
+        if (sync === true) {
+            return (() => {});
+        }
+        let expectedTime = 600;
+        let explanation = 'should resolve in ~' + expectedTime + 'ms when success achieved before timeout';
+        it(explanation, function() {
+            this.timeout(2000);
+            this.slow(expectedTime + 100);
+            let backoff = new Backoff(makeService())
+                .setInitialDelay(100)
+                .setServiceTimeout(1000)
+                .setDebugMode(debug);
+            return backoff.run(sync).should.become("5: resolved");
+        });
+    },
+    function(sync) {
+        if (sync === true) {
+            return (() => {});
+        }
+        let expectedTime = 500;
+        let explanation = 'should reject in ~' + expectedTime + 'ms when timeout before success';
+        it(explanation, function() {
+            this.timeout(2000);
+            this.slow(expectedTime + 100);
+            let backoff = new Backoff(makeService())
+                .setInitialDelay(100)
+                .setServiceTimeout(500)
+                .setDebugMode(debug);
+            return backoff.run(sync).should.be.rejectedWith(Backoff.Reason.timeout);
         });
     }
 ];

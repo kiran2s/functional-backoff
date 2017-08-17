@@ -262,7 +262,10 @@ class Backoff {
                     retry(0, local.initialDelay),
                     new Promise(function(resolve, reject) {
                         setTimeout(
-                            () => reject(Backoff.Reason.timeout),
+                            () => {
+                                _this.log("TIMEOUT");
+                                reject(Backoff.Reason.timeout);
+                            },
                             local.serviceTimeout
                         );
                     })
