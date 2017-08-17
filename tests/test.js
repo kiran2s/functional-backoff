@@ -13,7 +13,7 @@ var FibonacciBackoff = require('./../index.js').FibonacciBackoff;
 
 let debug = false;
 
-function makeService(successItr = 5, sleepAmt = 100, resolveVal = "resolved", rejectVal = "rejected", callback = null) {
+function makeService(successItr = 5, deltaTime = 100, resolveVal = "resolved", rejectVal = "rejected", callback = null) {
     let initTime = Date.now();
     let n = 0;
     return function() {
@@ -25,14 +25,14 @@ function makeService(successItr = 5, sleepAmt = 100, resolveVal = "resolved", re
                 resolveVal = rejectVal = callback(...args);
             }
 
-            if (typeof sleepAmt === "function") {
-                let amt = sleepAmt();
+            if (typeof deltaTime === "function") {
+                let amt = deltaTime();
                 await sleep(amt);
                 log("Service delta time: " + amt, initTime);
             }
             else {
-                await sleep(sleepAmt);
-                log("Service delta time: " + sleepAmt, initTime);
+                await sleep(deltaTime);
+                log("Service delta time: " + deltaTime, initTime);
             }
             if (callNum === successItr) {
                 resolve(callNum + ": " + resolveVal);
@@ -360,7 +360,7 @@ var tests = [
             this.timeout(2000);
             this.slow(expectedTime + 100);
             let backoff = new Backoff(makeService(5, 1000))
-                .setSyncTimeout(0)
+                .setServiceTimeout(0)
                 .setDebugMode(debug);
             if (sync) {
                 return backoff.run(sync).should.be.rejectedWith(Backoff.Reason.retryLimitReached);
@@ -379,7 +379,7 @@ var tests = [
             this.timeout(2000);
             this.slow(1200);
             let backoff = new Backoff(makeService())
-                .setSyncTimeout(10000)
+                .setServiceTimeout(10000)
                 .setDebugMode(debug);
             return backoff.run(sync).should.become("5: resolved");
         });
@@ -405,7 +405,7 @@ var tests = [
             };
 
             let backoff = new Backoff(makeService(5, getDelayAmt))
-                .setSyncTimeout(250)
+                .setServiceTimeout(250)
                 .setDebugMode(debug);
             return backoff.run(sync).should.become("5: resolved");
         });
@@ -432,7 +432,7 @@ var tests = [
 
             let backoff = new Backoff(makeService(5, getDelayAmt))
                 .setMaxRetries(5)
-                .setSyncTimeout(250)
+                .setServiceTimeout(250)
                 .setDebugMode(debug);
             return backoff.run(sync).should.be.rejectedWith(Backoff.Reason.retryLimitReached);
         });

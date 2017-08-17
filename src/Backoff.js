@@ -2,7 +2,7 @@
 
 class Backoff {
     constructor(service, args, retryCondition, initialDelay, nextDelay, 
-                maxRetries, maxDelay, syncTimeout = null, debug = false) {
+                maxRetries, maxDelay, serviceTimeout = null, debug = false) {
 
         this.setService(service, args)
             .setRetryCondition(retryCondition)
@@ -10,7 +10,7 @@ class Backoff {
             .setNextDelay(nextDelay)
             .setMaxRetries(maxRetries)
             .setMaxDelay(maxDelay)
-            .setSyncTimeout(syncTimeout)
+            .setServiceTimeout(serviceTimeout)
             .setDebugMode(debug);
 
         this.status = Backoff.Status.IDLE;
@@ -71,11 +71,11 @@ class Backoff {
         return this;
     }
 
-    setSyncTimeout(syncTimeout) {
-        if (typeof syncTimeout === "undefined" || syncTimeout === Infinity) {
-            syncTimeout = null;
+    setServiceTimeout(serviceTimeout) {
+        if (typeof serviceTimeout === "undefined" || serviceTimeout === Infinity) {
+            serviceTimeout = null;
         }
-        this.syncTimeout = syncTimeout;
+        this.serviceTimeout = serviceTimeout;
         return this;
     }
 
@@ -103,7 +103,6 @@ class Backoff {
         }
 
         let local = this.getLocalCopies();
-        let serviceSuccessful = false;
         let _this = this;
 
         let retryAfterDelay = function(retryNum, delayAmt, resolve, reject) {
@@ -125,10 +124,6 @@ class Backoff {
         };
 
         let retry = function(retryNum, delayAmt) {
-            if (serviceSuccessful === true) {
-                return new Promise(() => {});
-            }
-
             let eventuallyPerformAnotherRetry = true;
             let attemptService = function(retryNum, delayAmt) {
                 return new Promise(function(resolve, reject) {
@@ -136,7 +131,6 @@ class Backoff {
                         .then(result => {
                             eventuallyPerformAnotherRetry = false;
                             if (result.success === true) {
-                                serviceSuccessful = true;
                                 _this.log("SUCCESS");
                                 resolve(result.value);
                             }
@@ -159,7 +153,7 @@ class Backoff {
                 return new Promise(function(resolve, reject) {
                     setTimeout(
                         () => {
-                            _this.log("Timeout amount: " + local.syncTimeout);
+                            _this.log("Timeout amount: " + local.serviceTimeout);
                             if (eventuallyPerformAnotherRetry === true) {
                                 eventuallyPerformAnotherRetry = false;
                                 _this.log("TIMEOUT");
@@ -171,12 +165,12 @@ class Backoff {
                                 }
                             }
                         },
-                        local.syncTimeout
+                        local.serviceTimeout
                     );
                 });
             };
 
-            if (local.syncTimeout === null) {
+            if (local.serviceTimeout === null) {
                 return attemptService(retryNum, delayAmt);
             }
             else {
@@ -259,7 +253,22 @@ class Backoff {
             );
         }
 
-        return retry(0, local.initialDelay);
+        if (local.serviceTimeout === null) {
+            return retry(0, local.initialDelay);
+        }
+        else {
+            return Promise.race(
+                [
+                    retry(0, local.initialDelay),
+                    new Promise(function(resolve, reject) {
+                        setTimeout(
+                            () => reject(Backoff.Reason.timeout),
+                            local.serviceTimeout
+                        );
+                    })
+                ]
+            );
+        }
     }
 
     /* Helper methods */
@@ -315,7 +324,7 @@ class Backoff {
             nextDelay: this.nextDelay,
             maxRetries: this.maxRetries,
             maxDelay: this.maxDelay,
-            syncTimeout: this.syncTimeout
+            serviceTimeout: this.serviceTimeout
         };
     }
 
@@ -347,7 +356,8 @@ Backoff.Status = {
 
 Backoff.Reason = {
     serviceNotSet:          "Error: Service must be set before running backoff.",
-    retryLimitReached:      "Maximum retry limit reached."
+    retryLimitReached:      "Maximum retry limit reached.",
+    timeout:                "Service did not succeed before timeout."
 };
 
 module.exports = Backoff;
